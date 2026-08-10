@@ -30,6 +30,9 @@ Scripts en `sql/`:
 2. `01_schema_accounts.sql` — usuarios, perfiles, permisos
 3. `02_seed_permisos_perfiles.sql` — seed RBAC
 
+Copia de la base de aplicación (backup + datos): `sql/backups/` — ver `sql/backups/README.md`.  
+No se versionan `DBFED2026` ni `DBGERESA` (externas / sensibles).
+
 ```powershell
 sqlcmd -S "localhost\SQLEXPRESS" -E -C -i "sql\00_create_database.sql"
 sqlcmd -S "localhost\SQLEXPRESS" -E -C -i "sql\01_schema_accounts.sql"
