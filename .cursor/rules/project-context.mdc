@@ -1,0 +1,17 @@
+---
+description: Contexto Sistemas de Indicadores GERESA CUSCO
+alwaysApply: true
+---
+
+# Sistemas de Indicadores GERESA CUSCO
+
+- Ruta: `D:\www\sistemas de indicadores`
+- BD app: `DBSISINDICADORE`
+- BD HIS (lectura): `DBGERESA` (alias Django `geresa`)
+- BD FED (lectura): `DBFED2026` (alias Django `fed`)
+- Backend: Django Ninja en `Backend/`
+- Frontend: React + shadcn/ui en `Frontend/`
+- Módulo pacientes: `/api/paciente`, `/api/atenciones` + UI `/pacientes`
+- Módulo FED: `/api/fed/*` + UI `/fed` (MVP: mc0101, si0101)
+- Legado de referencia: `D:\www\GERESA_Convenios` (no sobrescribir)
+- Secretos solo en `.env` (gitignored)

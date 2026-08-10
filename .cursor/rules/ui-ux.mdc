@@ -1,0 +1,13 @@
+---
+description: Directrices UI/UX y diseño visual (shadcn + Tailwind)
+globs: Frontend/**/*
+alwaysApply: false
+---
+
+# UI/UX — Sistemas de Indicadores
+
+1. Priorizar estética, jerarquía, espaciado y UX en cambios de UI.
+2. Componentes pulidos; estados/semáforos: emerald/teal, amber, rose.
+3. Bordes redondeados, sombras suaves, transiciones fluidas.
+4. Tailwind refinado (`p-*`, `m-*`, `gap-*`); responsive desktop-dashboard.
+5. Preferir editar componentes React/CSS/Tailwind antes que backend, salvo petición explícita.
