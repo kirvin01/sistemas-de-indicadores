@@ -25,12 +25,12 @@ const STORAGE_KEY = 'sisindicadores_sidebar_collapsed'
 function BrandMark({ collapsed }: { collapsed: boolean }) {
   return (
     <div className={cn('flex min-w-0 items-center gap-3', collapsed && 'justify-center')}>
-      <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-sm font-bold text-primary-foreground shadow-md shadow-teal-900/15">
+      <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-sm font-bold text-primary-foreground shadow-sm shadow-teal-900/20">
         SI
       </div>
       {!collapsed && (
         <div className="min-w-0 leading-tight">
-          <p className="truncate text-sm font-semibold text-foreground">Indicadores</p>
+          <p className="truncate text-sm font-semibold text-slate-800">Indicadores</p>
           <p className="truncate text-[11px] text-muted-foreground">GERESA Cusco</p>
         </div>
       )}
@@ -47,6 +47,13 @@ function findExpandedId(pathname: string, items: NavItem[]): string | null {
   return null
 }
 
+/** Separa "SI-01.01 Texto" → código + resto (si aplica). */
+function splitLabel(label: string) {
+  const m = label.match(/^([A-Z]{2}-\d{2}\.\d{2})\s+(.+)$/)
+  if (!m) return { code: null as string | null, text: label }
+  return { code: m[1], text: m[2] }
+}
+
 function NavTree({
   nodes,
   depth,
@@ -59,37 +66,34 @@ function NavTree({
   toggleOpen: (id: string) => void
 }) {
   return (
-    <ul
-      className={cn(
-        'space-y-0.5',
-        depth === 0 && 'ml-4 border-l border-sidebar-border/80 py-1 pl-3',
-        depth > 0 && 'ml-2 border-l border-sidebar-border/50 py-0.5 pl-2',
-      )}
-    >
+    <ul className={cn('space-y-0.5', depth === 0 ? 'mt-1 pl-1' : 'mt-0.5 pl-2')}>
       {nodes.map((node) => {
         const hasKids = Boolean(node.children?.length)
         const open = openIds.has(node.id)
 
         if (hasKids) {
+          const isSection = depth === 0
           return (
             <li key={node.id} className="space-y-0.5">
               <button
                 type="button"
                 onClick={() => toggleOpen(node.id)}
                 className={cn(
-                  'flex w-full items-start gap-1.5 rounded-xl px-2 py-1.5 text-left text-[12px] font-semibold transition-colors',
-                  open
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-muted-foreground hover:bg-primary/10 hover:text-primary',
+                  'flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-left transition-colors',
+                  isSection
+                    ? 'text-[11px] font-bold tracking-wide text-slate-600 uppercase hover:bg-slate-100'
+                    : 'text-[12px] font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-800',
+                  open && !isSection && 'bg-slate-100 text-slate-800',
+                  open && isSection && 'text-primary',
                 )}
               >
                 <ChevronDown
                   className={cn(
-                    'mt-0.5 size-3.5 shrink-0 opacity-70 transition-transform duration-300',
-                    open && 'rotate-180',
+                    'size-3.5 shrink-0 text-slate-400 transition-transform duration-250',
+                    open && 'rotate-180 text-primary',
                   )}
                 />
-                <span className="leading-snug">{node.label}</span>
+                <span className="min-w-0 flex-1 leading-snug normal-case">{node.label}</span>
               </button>
               <div
                 className={cn(
@@ -97,7 +101,7 @@ function NavTree({
                   open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
                 )}
               >
-                <div className="overflow-hidden">
+                <div className="overflow-hidden border-l border-slate-200/90 ml-2.5 pl-2">
                   <NavTree
                     nodes={node.children!}
                     depth={depth + 1}
@@ -111,6 +115,7 @@ function NavTree({
         }
 
         if (!node.to) return null
+        const { code, text } = splitLabel(node.label)
 
         return (
           <li key={node.id}>
@@ -119,14 +124,32 @@ function NavTree({
               end={node.end}
               className={({ isActive }) =>
                 cn(
-                  'block rounded-xl px-2.5 py-1.5 text-[12px] leading-snug transition-colors duration-200',
+                  'group flex flex-col gap-0.5 rounded-lg px-2.5 py-2 transition-colors duration-200',
                   isActive
-                    ? 'bg-primary/15 font-medium text-primary'
-                    : 'text-muted-foreground hover:bg-primary/10 hover:text-primary',
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
                 )
               }
             >
-              {node.label}
+              {({ isActive }) => (
+                <>
+                  {code ? (
+                    <>
+                      <span
+                        className={cn(
+                          'text-[10px] font-bold tracking-wide',
+                          isActive ? 'text-primary-foreground/80' : 'text-primary',
+                        )}
+                      >
+                        {code}
+                      </span>
+                      <span className="text-[12px] leading-snug font-medium">{text}</span>
+                    </>
+                  ) : (
+                    <span className="text-[12px] leading-snug font-medium">{text}</span>
+                  )}
+                </>
+              )}
             </NavLink>
           </li>
         )
@@ -208,14 +231,15 @@ export function AppSidebar() {
     <aside
       className={cn(
         'sticky top-3 z-20 m-3 flex h-[calc(100svh-1.5rem)] shrink-0 flex-col',
-        'rounded-[1.75rem] border border-sidebar-border/80 bg-sidebar/95 shadow-[0_12px_40px_-20px_rgba(15,23,42,0.35)] backdrop-blur-md',
+        'rounded-2xl border border-border/80 bg-card',
+        'shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_32px_-20px_rgba(15,23,42,0.18)]',
         'transition-[width] duration-300 ease-out',
-        collapsed ? 'w-[4.5rem]' : 'w-72',
+        collapsed ? 'w-[4.75rem]' : 'w-[17.5rem]',
       )}
     >
       <div
         className={cn(
-          'flex border-b border-sidebar-border/70 px-3 py-4',
+          'flex border-b border-border/70 px-3 py-3.5',
           collapsed ? 'flex-col items-center gap-2' : 'items-center justify-between gap-2',
         )}
       >
@@ -223,7 +247,7 @@ export function AppSidebar() {
         <button
           type="button"
           onClick={() => setCollapsed((v) => !v)}
-          className="inline-flex size-9 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
+          className="inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-slate-100 hover:text-slate-800"
           aria-label={collapsed ? 'Expandir menú' : 'Colapsar menú'}
           title={collapsed ? 'Expandir' : 'Colapsar'}
         >
@@ -231,7 +255,7 @@ export function AppSidebar() {
         </button>
       </div>
 
-      <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-2.5 py-3">
+      <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2.5 py-3">
         {items.map((item) => {
           const hasChildren = Boolean(item.children?.length)
           const open = expandedId === item.id
@@ -247,42 +271,42 @@ export function AppSidebar() {
                 title={collapsed ? item.label : undefined}
                 className={({ isActive }) =>
                   cn(
-                    'group flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
+                    'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
                     collapsed && 'justify-center px-0',
                     isActive
-                      ? 'bg-primary text-primary-foreground shadow-md shadow-teal-900/10'
-                      : 'text-sidebar-foreground hover:bg-primary/10 hover:text-primary',
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-slate-700 hover:bg-slate-100',
                   )
                 }
               >
-                <item.icon className="size-[1.15rem] shrink-0 opacity-90" />
+                <item.icon className="size-[1.1rem] shrink-0 opacity-90" />
                 {!collapsed && <span className="truncate">{item.label}</span>}
               </NavLink>
             )
           }
 
           return (
-            <div key={item.id} className="space-y-1">
+            <div key={item.id} className="space-y-0.5">
               <button
                 type="button"
                 onClick={() => onParentClick(item)}
                 title={collapsed ? item.label : undefined}
                 className={cn(
-                  'flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
+                  'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200',
                   collapsed && 'justify-center px-0',
                   parentActive || open
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-sidebar-foreground hover:bg-primary/10 hover:text-primary',
+                    ? 'bg-teal-50 text-primary'
+                    : 'text-slate-700 hover:bg-slate-100',
                 )}
               >
-                <item.icon className="size-[1.15rem] shrink-0 opacity-90" />
+                <item.icon className="size-[1.1rem] shrink-0 opacity-90" />
                 {!collapsed && (
                   <>
                     <span className="flex-1 truncate text-left">{item.label}</span>
                     <ChevronDown
                       className={cn(
-                        'size-4 shrink-0 opacity-70 transition-transform duration-300',
-                        open && 'rotate-180',
+                        'size-4 shrink-0 text-slate-400 transition-transform duration-300',
+                        open && 'rotate-180 text-primary',
                       )}
                     />
                   </>
@@ -295,7 +319,7 @@ export function AppSidebar() {
                   !collapsed && open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
                 )}
               >
-                <div className="overflow-hidden">
+                <div className="overflow-hidden px-1 pb-1">
                   {item.children && (
                     <NavTree
                       nodes={item.children}
@@ -311,7 +335,7 @@ export function AppSidebar() {
         })}
       </nav>
 
-      <div className="space-y-1 border-t border-sidebar-border/70 px-2.5 py-3">
+      <div className="space-y-0.5 border-t border-border/70 px-2.5 py-2.5">
         {footerItems.map((item) =>
           item.to ? (
             <NavLink
@@ -328,11 +352,11 @@ export function AppSidebar() {
                 }
               }}
               className={cn(
-                'flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-primary/10 hover:text-primary',
+                'flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900',
                 collapsed && 'justify-center px-0',
               )}
             >
-              <item.icon className="size-[1.15rem] shrink-0" />
+              <item.icon className="size-[1.1rem] shrink-0" />
               {!collapsed && <span>{item.label}</span>}
             </NavLink>
           ) : null,
@@ -343,36 +367,38 @@ export function AppSidebar() {
           onClick={logout}
           title={collapsed ? 'Cerrar sesión' : undefined}
           className={cn(
-            'flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-rose-500/10 hover:text-rose-700',
+            'flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-rose-50 hover:text-rose-700',
             collapsed && 'justify-center px-0',
           )}
         >
-          <LogOut className="size-[1.15rem] shrink-0" />
+          <LogOut className="size-[1.1rem] shrink-0" />
           {!collapsed && <span>Cerrar sesión</span>}
         </button>
       </div>
 
-      <div className="border-t border-sidebar-border/70 p-2.5">
+      <div className="border-t border-border/70 p-2.5">
         <div
           className={cn(
-            'flex items-center gap-3 rounded-2xl bg-muted/50 px-2.5 py-2.5',
-            collapsed && 'justify-center px-0',
+            'flex items-center gap-3 rounded-xl border border-border/60 bg-slate-50/90 px-2.5 py-2',
+            collapsed && 'justify-center border-0 bg-transparent px-0',
           )}
         >
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/12 text-xs font-bold text-primary ring-2 ring-white">
             {initials}
           </div>
           {!collapsed && (
             <>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold">{user?.username ?? 'Usuario'}</p>
+                <p className="truncate text-sm font-semibold text-slate-800">
+                  {user?.username ?? 'Usuario'}
+                </p>
                 <p className="truncate text-[11px] text-muted-foreground">
-                  Perfil · {user?.profile ?? '—'}
+                  {user?.profile ?? '—'}
                 </p>
               </div>
               <button
                 type="button"
-                className="inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-background hover:text-foreground"
+                className="inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-white hover:text-slate-800"
                 aria-label="Más opciones"
                 onClick={() =>
                   toast.message('Cuenta', { description: user?.username ?? 'Sesión activa' })

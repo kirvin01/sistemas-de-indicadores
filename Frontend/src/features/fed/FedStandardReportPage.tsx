@@ -21,12 +21,14 @@ import {
 } from '@/components/ui/select'
 import { ApiError } from '@/lib/api'
 import {
+  avanceTone,
   fedApi,
   type FedFiltros,
   type FedResumenRow,
   type FedTablaCompleta,
   type FedTablaRedes,
 } from '@/lib/fedApi'
+import { cardSurface } from '@/lib/chartTheme'
 import { cn } from '@/lib/utils'
 import {
   FedAvanceBarChart,
@@ -280,10 +282,12 @@ export function FedStandardReportPage() {
     Boolean(descripcionExtra) &&
     descripcionExtra!.trim().toLowerCase() !== titulo.trim().toLowerCase()
 
+  const kpiTone = avanceTone(total?.avance_pct, meta)
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 md:space-y-8">
       {/* Encabezado */}
-      <div className="space-y-3">
+      <div className="space-y-4">
         <Link
           to="/fed"
           className="-ml-2 inline-flex items-center gap-2 rounded-xl px-2 py-1.5 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -291,27 +295,19 @@ export function FedStandardReportPage() {
           <ArrowLeft className="size-4" />
           Indicador FED
         </Link>
-        <div className="flex items-start gap-3">
-          <div
-            className={cn(
-              'mt-0.5 flex size-11 shrink-0 items-center justify-center rounded-full',
-              isRedes ? 'bg-emerald-800/10 text-emerald-800' : 'bg-blue-700/10 text-blue-700',
-            )}
-          >
+        <div className="flex items-start gap-4">
+          <div className="mt-0.5 flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <Activity className="size-5" />
           </div>
-          <div className="min-w-0 space-y-1">
-            <p
-              className={cn(
-                'text-sm font-semibold tracking-wide',
-                isRedes ? 'text-emerald-800/80' : 'text-blue-700/80',
-              )}
-            >
+          <div className="min-w-0 space-y-1.5">
+            <p className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
               FED {filtros.codigo}
             </p>
-            <h2 className="text-3xl font-bold tracking-tight">{titulo}</h2>
+            <h2 className="text-2xl font-bold tracking-tight text-slate-800 md:text-3xl">
+              {titulo}
+            </h2>
             {mostrarExtra && (
-              <p className="max-w-4xl text-sm leading-relaxed text-muted-foreground">
+              <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
                 {descripcionExtra}
               </p>
             )}
@@ -321,14 +317,14 @@ export function FedStandardReportPage() {
 
       {/* Tabs */}
       <div className="flex justify-center">
-        <div className="inline-flex rounded-2xl border border-border/80 bg-card p-1 shadow-sm">
+        <div className={cn('inline-flex p-1', cardSurface)}>
           <button
             type="button"
             onClick={() => setModo('territorial')}
             className={cn(
-              'inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors',
+              'inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors',
               modo === 'territorial'
-                ? 'bg-blue-700 text-white shadow-sm'
+                ? 'bg-sky-600 text-white shadow-sm'
                 : 'text-muted-foreground hover:bg-muted hover:text-foreground',
             )}
           >
@@ -339,9 +335,9 @@ export function FedStandardReportPage() {
             type="button"
             onClick={() => setModo('redes')}
             className={cn(
-              'inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors',
+              'inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors',
               modo === 'redes'
-                ? 'bg-emerald-800 text-white shadow-sm'
+                ? 'bg-primary text-primary-foreground shadow-sm'
                 : 'text-muted-foreground hover:bg-muted hover:text-foreground',
             )}
           >
@@ -352,12 +348,7 @@ export function FedStandardReportPage() {
       </div>
 
       {/* Filtros */}
-      <div
-        className={cn(
-          'rounded-2xl border bg-card p-4 shadow-sm',
-          isRedes ? 'border-emerald-800/15' : 'border-blue-700/15',
-        )}
-      >
+      <div className={cn('p-4 md:p-5', cardSurface)}>
         <p className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-muted-foreground">
           <Filter className="size-4" />
           Filtros
@@ -483,35 +474,64 @@ export function FedStandardReportPage() {
           Cargando datos…
         </div>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-12">
-          <div
-            className={cn(
-              'flex flex-col justify-center rounded-2xl p-5 text-white shadow-md lg:col-span-3',
-              isRedes
-                ? 'bg-gradient-to-br from-emerald-900 to-emerald-700'
-                : 'bg-gradient-to-br from-blue-800 to-blue-600',
-            )}
-          >
-            <div className="mb-2 flex items-center gap-2 text-sm text-white/85">
-              <TrendingUp className="size-4 opacity-90" />
-              <span>
-                Avance Global · {mesLabel ?? mes} {anioLabel ?? anio}
+        <div className="grid gap-4 lg:grid-cols-12 lg:gap-6">
+          <div className={cn('relative flex flex-col justify-center overflow-hidden p-5 lg:col-span-3', cardSurface)}>
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-sky-500 to-primary/40" />
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                <TrendingUp className="size-3.5 text-primary" />
+                <span>Avance global</span>
+              </div>
+              <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                {mesLabel ?? mes} {anioLabel ?? anio}
               </span>
             </div>
-            <p className="text-4xl font-black tracking-tight tabular-nums">
+            <p
+              className={cn(
+                'text-4xl font-black tracking-tight tabular-nums md:text-5xl',
+                kpiTone === 'success' && 'text-teal-700',
+                kpiTone === 'warning' && 'text-amber-600',
+                kpiTone === 'danger' && 'text-rose-600',
+                kpiTone === 'neutral' && 'text-slate-800',
+              )}
+            >
               {fmtPct(total?.avance_pct)}
             </p>
-            <div className="my-3 h-px bg-white/25" />
-            <div className="grid grid-cols-2 gap-2 text-center">
-              <div>
-                <p className="text-xs text-white/70">Denominador</p>
-                <p className="text-lg font-bold tabular-nums">
+            <div className="mt-3 space-y-1.5">
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                <span>Meta {meta.toFixed(1)}%</span>
+                <span className="font-medium text-slate-600">
+                  {total?.avance_pct != null
+                    ? `${Math.min(100, Math.round((Number(total.avance_pct) / meta) * 100))}% de la meta`
+                    : '—'}
+                </span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                <div
+                  className={cn(
+                    'h-full rounded-full transition-all duration-500',
+                    kpiTone === 'success' && 'bg-teal-600',
+                    kpiTone === 'warning' && 'bg-amber-500',
+                    kpiTone === 'danger' && 'bg-rose-500',
+                    kpiTone === 'neutral' && 'bg-slate-400',
+                  )}
+                  style={{
+                    width: `${Math.min(100, Math.max(0, ((total?.avance_pct ?? 0) / Math.max(meta, 0.01)) * 100))}%`,
+                  }}
+                />
+              </div>
+            </div>
+            <div className="my-4 h-px bg-border" />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-lg bg-sky-50/80 px-3 py-2">
+                <p className="text-[11px] font-medium text-sky-800/70">Denominador</p>
+                <p className="mt-0.5 text-lg font-bold text-slate-800 tabular-nums">
                   {total?.denominador?.toLocaleString('es-PE') ?? '—'}
                 </p>
               </div>
-              <div>
-                <p className="text-xs text-white/70">Numerador</p>
-                <p className="text-lg font-bold tabular-nums">
+              <div className="rounded-lg bg-teal-50/80 px-3 py-2">
+                <p className="text-[11px] font-medium text-teal-800/70">Numerador</p>
+                <p className="mt-0.5 text-lg font-bold text-slate-800 tabular-nums">
                   {total?.numerador?.toLocaleString('es-PE') ?? '—'}
                 </p>
               </div>
@@ -529,26 +549,14 @@ export function FedStandardReportPage() {
       )}
 
       {/* Tabla detalle */}
-      <div
-        className={cn(
-          'overflow-hidden rounded-2xl border bg-card shadow-sm',
-          isRedes ? 'border-emerald-800/15' : 'border-blue-700/15',
-        )}
-      >
-        <div
-          className={cn(
-            'flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3',
-            isRedes
-              ? 'border-emerald-800/10 bg-emerald-800/[0.03]'
-              : 'border-blue-700/10 bg-blue-700/[0.03]',
-          )}
-        >
+      <div className={cn('overflow-hidden', cardSurface)}>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 bg-slate-50/80 px-4 py-3 md:px-5">
           <div className="flex flex-wrap items-center gap-2">
             {isRedes ? (
-              <span className="rounded-full border border-emerald-800/30 px-3 py-1 text-xs font-medium text-emerald-900">
+              <span className="rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-slate-700">
                 {redes?.establecimientos.length ?? 0} establecimientos ·{' '}
-                {redes?.microredes.length ?? 0} microrredes · {redes?.redes.length ?? 0} redes (
-                {mes} {anio})
+                {redes?.microredes.length ?? 0} microrredes · {redes?.redes.length ?? 0} redes ·{' '}
+                {mes} {anio}
               </span>
             ) : (
               <>
@@ -556,7 +564,7 @@ export function FedStandardReportPage() {
                   {tabla?.distritos.length ?? 0} distritos · {tabla?.provincias.length ?? 0}{' '}
                   provincias
                 </span>
-                <span className="rounded-full border border-blue-700/30 bg-blue-700 px-2.5 py-0.5 text-xs font-medium text-white">
+                <span className="rounded-full bg-slate-800 px-2.5 py-0.5 text-xs font-medium text-white">
                   {mes} {anio}
                 </span>
               </>
@@ -570,11 +578,9 @@ export function FedStandardReportPage() {
                 type="button"
                 onClick={() => setVista(v)}
                 className={cn(
-                  'rounded-full border px-3 py-1 text-xs font-semibold transition-colors',
+                  'rounded-lg border px-3 py-1 text-xs font-semibold transition-colors',
                   vista === v
-                    ? isRedes
-                      ? 'border-emerald-800 bg-emerald-800 text-white'
-                      : 'border-blue-700 bg-blue-700 text-white'
+                    ? 'border-primary bg-primary text-primary-foreground'
                     : 'border-border bg-card text-muted-foreground hover:bg-muted',
                 )}
               >

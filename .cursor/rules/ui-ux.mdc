@@ -6,8 +6,8 @@ alwaysApply: false
 
 # UI/UX — Sistemas de Indicadores
 
-1. Priorizar estética, jerarquía, espaciado y UX en cambios de UI.
-2. Componentes pulidos; estados/semáforos: emerald/teal, amber, rose.
-3. Bordes redondeados, sombras suaves, transiciones fluidas.
-4. Tailwind refinado (`p-*`, `m-*`, `gap-*`); responsive desktop-dashboard.
-5. Preferir editar componentes React/CSS/Tailwind antes que backend, salvo petición explícita.
+1. Priorizar estética, jerarquía, espaciado y UX (regla 60-30-10).
+2. Neutros `#F8FAFC`/`#FFFFFF`/`#1E293B`; acento teal; alerta rose; comparación sky.
+3. Cards `rounded-xl`, sombras ligeras; saturación alta solo en series de datos.
+4. Gráficos: grid tenue, data labels, contraste entre series (`lib/chartTheme.ts`).
+5. Preferir UI sobre backend salvo petición explícita.

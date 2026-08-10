@@ -11,6 +11,8 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { cardSurface, chartTheme } from '@/lib/chartTheme'
+import { cn } from '@/lib/utils'
 
 export type AvanceBarRow = {
   name: string
@@ -24,10 +26,13 @@ export type TendenciaRow = {
   'Avance %': number
 }
 
-const DENOM_COLOR = '#7EB8F7'
-const NUM_COLOR = '#1565C0'
-const TREND_COLOR = '#00695C'
-const META_COLOR = '#D32F2F'
+const tooltipStyle = {
+  fontSize: 12,
+  borderRadius: 12,
+  border: `1px solid ${chartTheme.border}`,
+  boxShadow: chartTheme.tooltipShadow,
+  background: '#FFFFFF',
+}
 
 export function FedAvanceBarChart({
   titulo,
@@ -38,23 +43,46 @@ export function FedAvanceBarChart({
 }) {
   if (!data.length) {
     return (
-      <div className="flex h-[260px] items-center justify-center rounded-2xl border border-border/70 bg-card text-sm text-muted-foreground shadow-sm">
+      <div
+        className={cn(
+          'flex h-[280px] items-center justify-center text-sm text-muted-foreground',
+          cardSurface,
+        )}
+      >
         Sin datos para el gráfico
       </div>
     )
   }
 
   return (
-    <div className="flex h-full min-h-[260px] flex-col rounded-2xl border border-border/70 bg-card p-4 shadow-sm">
-      <h3 className="mb-3 text-sm font-semibold text-foreground">{titulo}</h3>
+    <div className={cn('flex h-full min-h-[280px] flex-col p-5', cardSurface)}>
+      <h3 className="mb-1 text-sm font-semibold tracking-tight text-slate-800">{titulo}</h3>
+      <p className="mb-3 text-xs text-muted-foreground">Denominador vs numerador del periodo</p>
       <div className="min-h-0 flex-1">
-        <ResponsiveContainer width="100%" height={210}>
-          <BarChart data={data} margin={{ top: 8, right: 8, left: -12, bottom: 4 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(15,23,42,0.06)" />
-            <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} interval={0} />
-            <YAxis tick={{ fontSize: 10, fill: '#64748b' }} allowDecimals={false} />
+        <ResponsiveContainer width="100%" height={220}>
+          <BarChart data={data} margin={{ top: 18, right: 8, left: -8, bottom: 0 }} barGap={4}>
+            <CartesianGrid
+              strokeDasharray="4 4"
+              stroke={chartTheme.grid}
+              vertical={false}
+            />
+            <XAxis
+              dataKey="name"
+              tick={{ fontSize: 11, fill: chartTheme.axis, fontWeight: 500 }}
+              interval={0}
+              axisLine={false}
+              tickLine={false}
+            />
+            <YAxis
+              tick={{ fontSize: 11, fill: chartTheme.axis }}
+              allowDecimals={false}
+              axisLine={false}
+              tickLine={false}
+              width={40}
+            />
             <Tooltip
-              contentStyle={{ fontSize: 12, borderRadius: 10, border: '1px solid #e2e8f0' }}
+              contentStyle={tooltipStyle}
+              cursor={{ fill: 'rgba(15, 23, 42, 0.04)' }}
               formatter={(value, name) => [
                 Number(value).toLocaleString('es-PE'),
                 String(name),
@@ -64,9 +92,30 @@ export function FedAvanceBarChart({
                 return pct != null ? `${label} · ${Number(pct).toFixed(2)}%` : String(label)
               }}
             />
-            <Legend wrapperStyle={{ fontSize: 11 }} />
-            <Bar dataKey="Denominador" fill={DENOM_COLOR} radius={[4, 4, 0, 0]} />
-            <Bar dataKey="Numerador" fill={NUM_COLOR} radius={[4, 4, 0, 0]} />
+            <Legend
+              wrapperStyle={{ fontSize: 12, fontWeight: 600, paddingTop: 8 }}
+              iconType="circle"
+              iconSize={8}
+            />
+            <Bar
+              dataKey="Denominador"
+              fill={chartTheme.comparative}
+              radius={[5, 5, 0, 0]}
+              maxBarSize={32}
+            />
+            <Bar
+              dataKey="Numerador"
+              fill={chartTheme.progress}
+              radius={[5, 5, 0, 0]}
+              maxBarSize={32}
+            >
+              <LabelList
+                dataKey="Numerador"
+                position="top"
+                style={{ fontSize: 10, fill: chartTheme.title, fontWeight: 700 }}
+                formatter={(value) => Number(value).toLocaleString('es-PE')}
+              />
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -83,54 +132,85 @@ export function FedTendenciaChart({
 }) {
   if (!data.length) {
     return (
-      <div className="flex h-[260px] items-center justify-center rounded-2xl border border-border/70 bg-card text-sm text-muted-foreground shadow-sm">
+      <div
+        className={cn(
+          'flex h-[280px] items-center justify-center text-sm text-muted-foreground',
+          cardSurface,
+        )}
+      >
         Sin tendencia
       </div>
     )
   }
 
   return (
-    <div className="flex h-full min-h-[260px] flex-col rounded-2xl border border-border/70 bg-card p-4 shadow-sm">
-      <h3 className="mb-3 text-sm font-semibold text-foreground">Tendencia — Avance %</h3>
+    <div className={cn('flex h-full min-h-[280px] flex-col p-5', cardSurface)}>
+      <h3 className="mb-1 text-sm font-semibold tracking-tight text-slate-800">
+        Tendencia — Avance %
+      </h3>
+      <p className="mb-3 text-xs text-muted-foreground">
+        Serie mensual · meta {meta.toFixed(2)}%
+      </p>
       <div className="min-h-0 flex-1">
         <ResponsiveContainer width="100%" height={220}>
-          <BarChart data={data} margin={{ top: 22, right: 10, left: -8, bottom: 4 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(15,23,42,0.06)" />
-            <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} />
+          <BarChart data={data} margin={{ top: 22, right: 8, left: -4, bottom: 0 }}>
+            <CartesianGrid
+              strokeDasharray="4 4"
+              stroke={chartTheme.grid}
+              vertical={false}
+            />
+            <XAxis
+              dataKey="name"
+              tick={{ fontSize: 11, fill: chartTheme.axis, fontWeight: 500 }}
+              axisLine={false}
+              tickLine={false}
+            />
             <YAxis
               domain={[0, 100]}
-              ticks={[0, 20, 40, 60, 80, 100]}
+              ticks={[0, 25, 50, 75, 100]}
               unit="%"
-              tick={{ fontSize: 10, fill: '#64748b' }}
+              tick={{ fontSize: 11, fill: chartTheme.axis }}
+              axisLine={false}
+              tickLine={false}
+              width={40}
             />
             <Tooltip
-              contentStyle={{ fontSize: 12, borderRadius: 10, border: '1px solid #e2e8f0' }}
+              contentStyle={tooltipStyle}
+              cursor={{ fill: 'rgba(15, 23, 42, 0.04)' }}
               formatter={(value) => [`${Number(value).toFixed(2)}%`, 'Avance %']}
             />
-            <Legend wrapperStyle={{ fontSize: 11 }} />
+            <Legend
+              wrapperStyle={{ fontSize: 12, fontWeight: 600, paddingTop: 8 }}
+              iconSize={8}
+            />
             <ReferenceLine
               y={meta}
-              stroke={META_COLOR}
-              strokeWidth={2}
-              strokeDasharray="6 6"
+              stroke={chartTheme.alert}
+              strokeWidth={1.75}
+              strokeDasharray="5 5"
             />
             <Line
               type="monotone"
               dataKey={() => null}
-              name={`Meta Verificación ${meta.toFixed(2)}%`}
-              stroke={META_COLOR}
-              strokeWidth={2}
-              strokeDasharray="6 6"
+              name={`Meta ${meta.toFixed(1)}%`}
+              stroke={chartTheme.alert}
+              strokeWidth={1.75}
+              strokeDasharray="5 5"
               dot={false}
               legendType="plainline"
               activeDot={false}
               isAnimationActive={false}
             />
-            <Bar dataKey="Avance %" fill={TREND_COLOR} radius={[4, 4, 0, 0]}>
+            <Bar
+              dataKey="Avance %"
+              fill={chartTheme.progress}
+              radius={[5, 5, 0, 0]}
+              maxBarSize={36}
+            >
               <LabelList
                 dataKey="Avance %"
                 position="top"
-                style={{ fontSize: 9, fill: TREND_COLOR, fontWeight: 700 }}
+                style={{ fontSize: 10, fill: chartTheme.title, fontWeight: 700 }}
                 formatter={(value) => `${Number(value).toFixed(1)}%`}
               />
             </Bar>

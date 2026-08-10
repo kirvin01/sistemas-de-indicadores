@@ -26,11 +26,11 @@ function AvancePill({ value, meta }: { value: number | null | undefined; meta: n
   const tone = avanceTone(value, meta)
   const solid =
     tone === 'success'
-      ? 'border-transparent bg-emerald-700 text-white'
+      ? 'border-transparent bg-teal-600 text-white'
       : tone === 'warning'
-        ? 'border-transparent bg-amber-600 text-white'
+        ? 'border-transparent bg-amber-500 text-white'
         : tone === 'danger'
-          ? 'border-transparent bg-rose-700 text-white'
+          ? 'border-transparent bg-rose-500 text-white'
           : undefined
   return (
     <StatusBadge tone={tone} className={cn('min-w-[4.5rem] justify-center tabular-nums', solid)}>
@@ -71,12 +71,12 @@ function ProvinciaFila({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="grid w-full grid-cols-[2rem_minmax(0,1.4fr)_5.5rem_5.5rem_6rem] items-center gap-1 border-b border-blue-700/15 bg-blue-700/10 px-2 py-2.5 text-left hover:bg-blue-700/15"
+        className="grid w-full grid-cols-[2rem_minmax(0,1.4fr)_5.5rem_5.5rem_6rem] items-center gap-1 border-b border-sky-200/80 bg-sky-50/90 px-3 py-2.5 text-left hover:bg-sky-100/80"
       >
-        <span className="flex justify-center text-blue-800">
+        <span className="flex justify-center text-sky-700">
           {open ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
         </span>
-        <span className="truncate text-sm font-bold text-blue-900">Total {prov.PROVINCIA}</span>
+        <span className="truncate text-sm font-bold text-slate-800">Total {prov.PROVINCIA}</span>
         <span className="text-center text-sm font-bold tabular-nums">{fmtN(prov.denominador)}</span>
         <span className="text-center text-sm font-bold tabular-nums">{fmtN(prov.numerador)}</span>
         <span className="flex justify-center">
@@ -87,10 +87,10 @@ function ProvinciaFila({
         filas.map((d) => (
           <div
             key={`${d.PROVINCIA}-${d.DISTRITO}`}
-            className="grid grid-cols-[2rem_minmax(0,1.4fr)_5.5rem_5.5rem_6rem] items-center gap-1 border-b border-black/5 px-2 py-2 hover:bg-blue-700/[0.04]"
+            className="grid grid-cols-[2rem_minmax(0,1.4fr)_5.5rem_5.5rem_6rem] items-center gap-1 border-b border-slate-100 px-3 py-2 hover:bg-slate-50"
           >
             <span />
-            <span className="truncate pl-2 text-sm text-foreground">{d.DISTRITO}</span>
+            <span className="truncate pl-2 text-sm text-slate-700">{d.DISTRITO}</span>
             <span className="text-center text-sm tabular-nums">{fmtN(d.denominador)}</span>
             <span className="text-center text-sm tabular-nums">{fmtN(d.numerador)}</span>
             <span className="flex justify-center">
@@ -128,11 +128,11 @@ export function FedTerritorialTable({
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
-            <TableHead className="text-blue-900">Provincia</TableHead>
-            <TableHead className="text-blue-900">Distrito</TableHead>
-            <TableHead className="text-center text-blue-900">Denominador</TableHead>
-            <TableHead className="text-center text-blue-900">Numerador</TableHead>
-            <TableHead className="text-center text-blue-900">Avance %</TableHead>
+            <TableHead className="text-slate-700">Provincia</TableHead>
+            <TableHead className="text-slate-700">Distrito</TableHead>
+            <TableHead className="text-center text-slate-700">Denominador</TableHead>
+            <TableHead className="text-center text-slate-700">Numerador</TableHead>
+            <TableHead className="text-center text-slate-700">Avance %</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -162,14 +162,14 @@ export function FedTerritorialTable({
 
   return (
     <div>
-      <div className="grid grid-cols-[2rem_minmax(0,1.4fr)_5.5rem_5.5rem_6rem] items-center gap-1 border-b-2 border-blue-700/15 bg-blue-700/[0.06] px-2 py-2">
+      <div className="grid grid-cols-[2rem_minmax(0,1.4fr)_5.5rem_5.5rem_6rem] items-center gap-1 border-b border-border bg-slate-50 px-3 py-2.5">
         <span />
-        <span className="text-xs font-bold tracking-wide text-slate-800 uppercase">
+        <span className="text-[11px] font-bold tracking-wide text-slate-600 uppercase">
           Provincia / Distrito
         </span>
-        <span className="text-center text-xs font-bold text-slate-800">Denominador</span>
-        <span className="text-center text-xs font-bold text-slate-800">Numerador</span>
-        <span className="text-center text-xs font-bold text-slate-800">Avance %</span>
+        <span className="text-center text-[11px] font-bold text-slate-600 uppercase">Denominador</span>
+        <span className="text-center text-[11px] font-bold text-slate-600 uppercase">Numerador</span>
+        <span className="text-center text-[11px] font-bold text-slate-600 uppercase">Avance %</span>
       </div>
       <div className="max-h-[520px] overflow-y-auto">
         {tabla.provincias.map((prov) => (
@@ -183,16 +183,16 @@ export function FedTerritorialTable({
         ))}
       </div>
       {tabla.total && (
-        <div className="grid grid-cols-[2rem_minmax(0,1.4fr)_5.5rem_5.5rem_6rem] items-center gap-1 bg-blue-700 px-2 py-3 text-white">
+        <div className="grid grid-cols-[2rem_minmax(0,1.4fr)_5.5rem_5.5rem_6rem] items-center gap-1 bg-slate-800 px-3 py-3 text-white">
           <span />
-          <span className="text-sm font-black tracking-wide">TOTAL GENERAL</span>
-          <span className="text-center text-sm font-black tabular-nums">
+          <span className="text-sm font-bold tracking-wide">TOTAL GENERAL</span>
+          <span className="text-center text-sm font-bold tabular-nums">
             {fmtN(tabla.total.denominador)}
           </span>
-          <span className="text-center text-sm font-black tabular-nums">
+          <span className="text-center text-sm font-bold tabular-nums">
             {fmtN(tabla.total.numerador)}
           </span>
-          <span className="text-center text-base font-black tabular-nums">
+          <span className="text-center text-base font-bold tabular-nums">
             {fmtPct(tabla.total.avance_pct)}
           </span>
         </div>
@@ -240,14 +240,14 @@ function MicroredFila({
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={cn(
-          'grid w-full items-center gap-1 border-b border-emerald-800/10 bg-emerald-800/[0.05] px-2 py-2 text-left hover:bg-emerald-800/10',
+          'grid w-full items-center gap-1 border-b border-teal-100 bg-teal-50/50 px-3 py-2 text-left hover:bg-teal-50',
           REDES_COLS,
         )}
       >
-        <span className="flex justify-center pl-4 text-emerald-900">
+        <span className="flex justify-center pl-4 text-teal-700">
           {open ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
         </span>
-        <span className="truncate pl-2 text-sm font-semibold text-emerald-900">
+        <span className="truncate pl-2 text-sm font-semibold text-slate-700">
           {microred.MICRORED}
         </span>
         <span />
@@ -266,13 +266,13 @@ function MicroredFila({
           <div
             key={`${e.RED}-${e.MICRORED}-${e.ESTABLECIMIENTO}`}
             className={cn(
-              'grid items-center gap-1 border-b border-black/5 px-2 py-1.5 hover:bg-emerald-800/[0.04]',
+              'grid items-center gap-1 border-b border-slate-100 px-3 py-1.5 hover:bg-slate-50',
               REDES_COLS,
             )}
           >
             <span />
             <span />
-            <span className="truncate text-[13px] text-foreground">{e.ESTABLECIMIENTO}</span>
+            <span className="truncate text-[13px] text-slate-700">{e.ESTABLECIMIENTO}</span>
             <span className="text-center text-sm tabular-nums">{fmtN(e.denominador)}</span>
             <span className="text-center text-sm tabular-nums">{fmtN(e.numerador)}</span>
             <span className="flex justify-center">
@@ -320,15 +320,15 @@ function RedFila({
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={cn(
-          'grid w-full items-center gap-1 border-b border-emerald-800/15 bg-emerald-800/10 px-2 py-2.5 text-left hover:bg-emerald-800/15',
+          'grid w-full items-center gap-1 border-b border-teal-200/80 bg-teal-50/90 px-3 py-2.5 text-left hover:bg-teal-100/70',
           REDES_COLS,
         )}
       >
-        <span className="flex justify-center text-emerald-900">
+        <span className="flex justify-center text-teal-700">
           {open ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
         </span>
-        <span className="truncate text-sm font-bold text-emerald-900">{red.RED}</span>
-        <span className="truncate text-sm font-bold text-emerald-900">Total Red</span>
+        <span className="truncate text-sm font-bold text-slate-800">{red.RED}</span>
+        <span className="truncate text-sm font-semibold text-slate-500">Total Red</span>
         <span className="text-center text-sm font-bold tabular-nums">{fmtN(red.denominador)}</span>
         <span className="text-center text-sm font-bold tabular-nums">{fmtN(red.numerador)}</span>
         <span className="flex justify-center">
@@ -377,12 +377,12 @@ export function FedRedesTable({
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
-            <TableHead className="text-emerald-900">Red</TableHead>
-            <TableHead className="text-emerald-900">Microred</TableHead>
-            <TableHead className="text-emerald-900">Establecimiento</TableHead>
-            <TableHead className="text-center text-emerald-900">Denominador</TableHead>
-            <TableHead className="text-center text-emerald-900">Numerador</TableHead>
-            <TableHead className="text-center text-emerald-900">Avance %</TableHead>
+            <TableHead className="text-slate-700">Red</TableHead>
+            <TableHead className="text-slate-700">Microred</TableHead>
+            <TableHead className="text-slate-700">Establecimiento</TableHead>
+            <TableHead className="text-center text-slate-700">Denominador</TableHead>
+            <TableHead className="text-center text-slate-700">Numerador</TableHead>
+            <TableHead className="text-center text-slate-700">Avance %</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -415,20 +415,20 @@ export function FedRedesTable({
     <div>
       <div
         className={cn(
-          'grid items-center gap-1 border-b-2 border-emerald-800/15 bg-emerald-800/[0.06] px-2 py-2',
+          'grid items-center gap-1 border-b border-border bg-slate-50 px-3 py-2.5',
           REDES_COLS,
         )}
       >
         <span />
-        <span className="text-xs font-bold tracking-wide text-emerald-900 uppercase">
+        <span className="text-[11px] font-bold tracking-wide text-slate-600 uppercase">
           Red / Microred
         </span>
-        <span className="text-xs font-bold tracking-wide text-emerald-900 uppercase">
+        <span className="text-[11px] font-bold tracking-wide text-slate-600 uppercase">
           Establecimiento
         </span>
-        <span className="text-center text-xs font-bold text-emerald-900">Denominador</span>
-        <span className="text-center text-xs font-bold text-emerald-900">Numerador</span>
-        <span className="text-center text-xs font-bold text-emerald-900">Avance %</span>
+        <span className="text-center text-[11px] font-bold text-slate-600 uppercase">Denominador</span>
+        <span className="text-center text-[11px] font-bold text-slate-600 uppercase">Numerador</span>
+        <span className="text-center text-[11px] font-bold text-slate-600 uppercase">Avance %</span>
       </div>
       <div className="max-h-[520px] overflow-y-auto">
         {redes.redes.map((r) => (
@@ -445,19 +445,19 @@ export function FedRedesTable({
       {redes.total && (
         <div
           className={cn(
-            'grid items-center gap-1 bg-emerald-800 px-2 py-3 text-white',
+            'grid items-center gap-1 bg-slate-800 px-3 py-3 text-white',
             REDES_COLS,
           )}
         >
           <span />
-          <span className="col-span-2 text-sm font-black tracking-wide">TOTAL GENERAL</span>
-          <span className="text-center text-sm font-black tabular-nums">
+          <span className="col-span-2 text-sm font-bold tracking-wide">TOTAL GENERAL</span>
+          <span className="text-center text-sm font-bold tabular-nums">
             {fmtN(redes.total.denominador)}
           </span>
-          <span className="text-center text-sm font-black tabular-nums">
+          <span className="text-center text-sm font-bold tabular-nums">
             {fmtN(redes.total.numerador)}
           </span>
-          <span className="text-center text-base font-black tabular-nums">
+          <span className="text-center text-base font-bold tabular-nums">
             {fmtPct(redes.total.avance_pct)}
           </span>
         </div>
