@@ -15,7 +15,7 @@ from apps.accounts.schemas import (
     PerfilUpdateIn,
     PermisoOut,
     ResetPasswordIn,
-    SesionIngresoOut,
+    SesionIngresoListOut,
     TokenOut,
     UsuarioCreateIn,
     UsuarioOut,
@@ -107,16 +107,25 @@ def reset_password(request, payload: ResetPasswordIn):
     return {"message": "Contraseña restablecida. Ya puede iniciar sesión."}
 
 
-@auth_router.get("/sesiones", response=list[SesionIngresoOut], auth=auth_bearer)
+@auth_router.get("/sesiones", response=SesionIngresoListOut, auth=auth_bearer)
 def listar_sesiones(
     request,
     username: str | None = None,
     desde: str | None = None,
     hasta: str | None = None,
-    limit: int = 100,
+    offset: int = 0,
+    per_page: int = 25,
+    limit: int | None = None,
 ):
     require_permission(request.auth, "admin:sesiones")
-    return services.list_sesiones(username=username, desde=desde, hasta=hasta, limit=limit)
+    return services.list_sesiones(
+        username=username,
+        desde=desde,
+        hasta=hasta,
+        offset=offset,
+        per_page=per_page,
+        limit=limit,
+    )
 
 
 @users_router.get("", response=list[UsuarioOut])

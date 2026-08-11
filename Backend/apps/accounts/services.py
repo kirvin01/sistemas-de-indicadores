@@ -424,73 +424,63 @@ def reset_password(token: str, new_password: str) -> None:
 
 
 def list_sesiones(
-
     username: str | None = None,
-
     desde: str | None = None,
-
     hasta: str | None = None,
+    offset: int = 0,
+    per_page: int = 25,
+    limit: int | None = None,
+) -> dict:
+    """Lista sesiones paginadas. Compat: limit equivale a per_page si se envía."""
+    from datetime import datetime, time, timedelta
 
-    limit: int = 100,
-
-) -> list[dict]:
-
-    limit = max(1, min(limit, 500))
+    if limit is not None and limit > 0:
+        per_page = limit
+    offset = max(0, offset)
+    per_page = max(1, min(per_page, 100))
 
     qs = SesionIngreso.objects.select_related("usuario__perfil").order_by("-ingresado_en")
 
     if username and username.strip():
-
         qs = qs.filter(username__icontains=username.strip())
 
     if desde:
-
-        qs = qs.filter(ingresado_en__date__gte=desde)
+        try:
+            d0 = datetime.strptime(desde[:10], "%Y-%m-%d").date()
+            start_dt = timezone.make_aware(datetime.combine(d0, time.min))
+            qs = qs.filter(ingresado_en__gte=start_dt)
+        except ValueError:
+            qs = qs.filter(ingresado_en__date__gte=desde)
 
     if hasta:
-
-        qs = qs.filter(ingresado_en__date__lte=hasta)
-
-    rows = list(qs[:limit])
-
-    out = []
-
-    for r in rows:
-
-        profile = None
-
         try:
+            d1 = datetime.strptime(hasta[:10], "%Y-%m-%d").date()
+            end_dt = timezone.make_aware(
+                datetime.combine(d1 + timedelta(days=1), time.min)
+            )
+            qs = qs.filter(ingresado_en__lt=end_dt)
+        except ValueError:
+            qs = qs.filter(ingresado_en__date__lte=hasta)
 
+    rows = list(qs[offset : offset + per_page])
+    out = []
+    for r in rows:
+        profile = None
+        try:
             profile = r.usuario.perfil.codigo
-
         except Exception:
-
             profile = None
-
         out.append(
-
             {
-
                 "id": r.id,
-
                 "usuario_id": r.usuario_id,
-
                 "username": r.username,
-
                 "profile": profile,
-
                 "ingresado_en": r.ingresado_en.isoformat() if r.ingresado_en else "",
-
                 "ip": r.ip,
-
             }
-
         )
-
-    return out
-
-
-
+    return {"result": out}
 
 
 def list_permisos() -> list[Permiso]:

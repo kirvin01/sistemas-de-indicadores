@@ -173,14 +173,24 @@ export const authApi = {
       method: 'POST',
       body: JSON.stringify({ token, password }),
     }),
-  sesiones: (params?: { username?: string; desde?: string; hasta?: string; limit?: number }) => {
+  sesiones: (
+    params?: {
+      username?: string
+      desde?: string
+      hasta?: string
+      offset?: number
+      per_page?: number
+    },
+    init?: RequestInit,
+  ) => {
     const q = new URLSearchParams()
     if (params?.username) q.set('username', params.username)
     if (params?.desde) q.set('desde', params.desde)
     if (params?.hasta) q.set('hasta', params.hasta)
-    if (params?.limit != null) q.set('limit', String(params.limit))
+    q.set('offset', String(params?.offset ?? 0))
+    q.set('per_page', String(params?.per_page ?? 25))
     const qs = q.toString()
-    return apiFetch<SesionIngreso[]>(`/auth/sesiones${qs ? `?${qs}` : ''}`)
+    return apiFetch<{ result: SesionIngreso[] }>(`/auth/sesiones?${qs}`, init)
   },
 }
 
