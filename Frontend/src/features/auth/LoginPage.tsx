@@ -1,18 +1,19 @@
 import { useState, type FormEvent } from 'react'
 import { Navigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Activity } from 'lucide-react'
+import { Eye, EyeOff, Lock, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAuth } from '@/context/AuthContext'
 import { ApiError } from '@/lib/api'
+import geresaLogo from '@/assets/geresa-logo.png'
 
 export function LoginPage() {
   const { user, loading, login, can } = useAuth()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   if (!loading && user) {
@@ -34,68 +35,104 @@ export function LoginPage() {
     }
   }
 
-  return (
-    <div className="relative flex min-h-svh items-center justify-center overflow-hidden p-4 md:p-8">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,oklch(0.88_0.06_195),transparent),linear-gradient(180deg,oklch(0.97_0.02_210),oklch(0.94_0.02_230))]" />
-      <div className="pointer-events-none absolute -top-24 right-0 size-72 rounded-full bg-teal-300/20 blur-3xl" />
-      <div className="pointer-events-none absolute bottom-0 left-0 size-80 rounded-full bg-emerald-200/25 blur-3xl" />
+  const canSubmit = username.trim().length > 0 && password.length > 0 && !submitting
 
-      <Card className="relative w-full max-w-md rounded-2xl border-border/70 bg-card/95 shadow-[0_20px_50px_-24px_rgba(15,118,110,0.35)] backdrop-blur">
-        <CardHeader className="space-y-3 px-6 pt-8 text-center md:px-8">
-          <div className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-teal-900/15">
-            <Activity className="size-6" />
+  return (
+    <div className="relative flex min-h-svh items-center justify-center overflow-hidden bg-background p-4 md:p-8">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_-8%,rgba(15,118,110,0.14),transparent)]" />
+      <div className="pointer-events-none absolute -top-20 right-0 size-72 rounded-full bg-primary/10 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-0 left-0 size-80 rounded-full bg-sky-400/10 blur-3xl" />
+
+      <div className="relative w-full max-w-[400px] overflow-hidden rounded-[1.75rem] border border-border/70 bg-card shadow-[0_24px_60px_-28px_rgba(15,23,42,0.35)]">
+        {/* Cabecera institucional */}
+        <div className="relative bg-primary px-6 pt-8 pb-7 text-center text-primary-foreground">
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-b from-transparent to-black/10" />
+          <div className="relative mx-auto mb-4 flex size-[5.5rem] items-center justify-center rounded-full bg-white p-1.5 shadow-lg ring-4 ring-white/25">
+            <img
+              src={geresaLogo}
+              alt="Gerencia Regional de Salud Cusco"
+              className="size-full rounded-full object-cover"
+            />
           </div>
-          <div className="space-y-1.5">
-            <CardDescription className="text-[11px] font-semibold tracking-[0.22em] text-teal-800/70 uppercase">
-              GERESA Cusco
-            </CardDescription>
-            <CardTitle className="text-2xl font-semibold tracking-tight md:text-[1.7rem]">
-              Sistemas de Indicadores
-            </CardTitle>
-            <CardDescription className="text-sm leading-relaxed">
-              Acceso seguro al panel de indicadores y administración
-            </CardDescription>
+          <h1 className="text-[0.95rem] font-bold tracking-[0.04em] uppercase">
+            Gerencia Regional de Salud
+          </h1>
+          <p className="mt-1.5 text-sm font-medium text-primary-foreground/90">
+            Sistemas de Indicadores
+          </p>
+        </div>
+
+        {/* Formulario */}
+        <div className="px-6 pt-6 pb-7 md:px-8">
+          <div className="mb-5 flex items-center justify-center gap-2 text-slate-700">
+            <Lock className="size-4 text-muted-foreground" />
+            <h2 className="text-base font-semibold tracking-tight">Iniciar sesión</h2>
           </div>
-        </CardHeader>
-        <CardContent className="px-6 pb-8 md:px-8">
+
           <form className="space-y-5" onSubmit={onSubmit}>
-            <div className="space-y-2 text-left">
-              <Label htmlFor="username" className="text-sm font-medium">
+            <div className="relative pt-2">
+              <Label
+                htmlFor="username"
+                className="absolute top-0 left-3 z-10 bg-card px-1 text-xs font-medium text-muted-foreground"
+              >
                 Usuario
               </Label>
-              <Input
-                id="username"
-                className="h-10 rounded-xl transition-shadow focus-visible:shadow-[0_0_0_3px_oklch(0.85_0.05_195)]"
-                autoComplete="username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-              />
+              <div className="relative">
+                <User className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  id="username"
+                  className="h-11 rounded-xl border-slate-200 bg-white pl-10"
+                  autoComplete="username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  required
+                />
+              </div>
             </div>
-            <div className="space-y-2 text-left">
-              <Label htmlFor="password" className="text-sm font-medium">
+
+            <div className="relative pt-2">
+              <Label
+                htmlFor="password"
+                className="absolute top-0 left-3 z-10 bg-card px-1 text-xs font-medium text-muted-foreground"
+              >
                 Contraseña
               </Label>
-              <Input
-                id="password"
-                type="password"
-                className="h-10 rounded-xl transition-shadow focus-visible:shadow-[0_0_0_3px_oklch(0.85_0.05_195)]"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
+              <div className="relative">
+                <Lock className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  className="h-11 rounded-xl border-slate-200 bg-white pr-10 pl-10"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute top-1/2 right-2 inline-flex size-8 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                >
+                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+              </div>
             </div>
+
             <Button
               type="submit"
-              className="h-10 w-full rounded-xl shadow-md shadow-teal-900/10 transition-all hover:shadow-lg"
-              disabled={submitting}
+              className="h-11 w-full rounded-xl text-sm font-semibold shadow-md shadow-teal-900/15 transition-all hover:shadow-lg disabled:bg-slate-300 disabled:text-white disabled:shadow-none"
+              disabled={!canSubmit}
             >
               {submitting ? 'Ingresando…' : 'Ingresar'}
             </Button>
           </form>
-        </CardContent>
-      </Card>
+
+          <p className="mt-6 text-center text-[11px] leading-relaxed text-muted-foreground">
+            Dirección de Estadística, Informática y Telecomunicaciones
+          </p>
+        </div>
+      </div>
     </div>
   )
 }
