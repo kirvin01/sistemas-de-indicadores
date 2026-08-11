@@ -1,7 +1,15 @@
 import {
   BarChart3,
   ClipboardList,
+  FileBarChart2,
+  Goal,
+  History,
+  Layers,
   LayoutDashboard,
+  Settings2,
+  Shield,
+  Stethoscope,
+  Target,
   UserCircle,
   Users,
   type LucideIcon,
@@ -13,6 +21,7 @@ export type NavChild = {
   to?: string
   permission?: string | null
   end?: boolean
+  icon?: LucideIcon
   /** Subgrupos anidados (p. ej. bloques FED) */
   children?: NavChild[]
 }
@@ -39,6 +48,16 @@ function fedLeaf(
     label: `${codigo} ${nombre}`,
     to: `/fed/${slug}`,
     permission: 'fed:read',
+    icon: FileBarChart2,
+  }
+}
+
+function fedBlock(id: string, label: string, children: NavChild[]): NavChild {
+  return {
+    id,
+    label,
+    icon: Layers,
+    children,
   }
 }
 
@@ -63,6 +82,7 @@ export const mainNav: NavItem[] = [
         label: 'Consulta Pacientes',
         to: '/pacientes',
         permission: 'pacientes:read',
+        icon: Stethoscope,
       },
     ],
   },
@@ -75,11 +95,12 @@ export const mainNav: NavItem[] = [
       {
         id: 'compromisos',
         label: 'Compromisos de Gestión',
+        icon: Target,
         children: [
-          {
-            id: 'si01-bloque',
-            label: 'Gestantes con suplementación de hierro y dosaje de hemoglobina',
-            children: [
+          fedBlock(
+            'si01-bloque',
+            'Gestantes con suplementación de hierro y dosaje de hemoglobina',
+            [
               fedLeaf('si0101', 'SI-01.01', 'Gestantes con 1ra APN', 'si0101'),
               fedLeaf('si0102', 'SI-01.02', 'Gestantes con anemia', 'si0102'),
               fedLeaf(
@@ -89,11 +110,11 @@ export const mainNav: NavItem[] = [
                 'si0103',
               ),
             ],
-          },
-          {
-            id: 'si02-bloque',
-            label: 'Niñas y niños < 12 meses con hierro y dosaje de hemoglobina',
-            children: [
+          ),
+          fedBlock(
+            'si02-bloque',
+            'Niñas y niños < 12 meses con hierro y dosaje de hemoglobina',
+            [
               fedLeaf('si0201', 'SI-02.01', 'Niños de 6 meses', 'si0201'),
               fedLeaf(
                 'si0202',
@@ -104,11 +125,11 @@ export const mainNav: NavItem[] = [
               fedLeaf('si0203', 'SI-02.03', 'Niños de 12 meses con anemia', 'si0203'),
               fedLeaf('si0204', 'SI-02.04', 'Niños de 12 meses sin anemia', 'si0204'),
             ],
-          },
-          {
-            id: 'si03-bloque',
-            label: 'Adolescentes mujeres de 12 a 17 años con dosaje de hemoglobina',
-            children: [
+          ),
+          fedBlock(
+            'si03-bloque',
+            'Adolescentes mujeres de 12 a 17 años con dosaje de hemoglobina',
+            [
               fedLeaf('si0301', 'SI-03.01', 'Adolescentes de 12 a 17 años', 'si0301'),
               fedLeaf(
                 'si0302',
@@ -117,12 +138,11 @@ export const mainNav: NavItem[] = [
                 'si0302',
               ),
             ],
-          },
-          {
-            id: 'vi01-bloque',
-            label:
-              'VI-01 Gestantes con tamizaje positivo de violencia y paquete terapéutico',
-            children: [
+          ),
+          fedBlock(
+            'vi01-bloque',
+            'VI-01 Gestantes con tamizaje positivo de violencia y paquete terapéutico',
+            [
               fedLeaf(
                 'vi0101',
                 'VI-01.01',
@@ -136,12 +156,13 @@ export const mainNav: NavItem[] = [
                 'vi0102',
               ),
             ],
-          },
+          ),
         ],
       },
       {
         id: 'metas-cobertura',
         label: 'Metas de Cobertura',
+        icon: Goal,
         children: [
           fedLeaf(
             'mc0101',
@@ -168,7 +189,7 @@ export const mainNav: NavItem[] = [
   {
     id: 'admin',
     label: 'Administración',
-    icon: Users,
+    icon: Settings2,
     permission: null,
     children: [
       {
@@ -176,18 +197,21 @@ export const mainNav: NavItem[] = [
         label: 'Usuarios',
         to: '/admin/usuarios',
         permission: 'admin:users',
+        icon: Users,
       },
       {
         id: 'perfiles',
         label: 'Perfiles',
         to: '/admin/perfiles',
         permission: 'admin:profiles',
+        icon: Shield,
       },
       {
         id: 'sesiones',
         label: 'Seguimiento de ingresos',
         to: '/admin/sesiones',
         permission: 'admin:sesiones',
+        icon: History,
       },
     ],
   },
