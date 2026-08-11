@@ -7,7 +7,18 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { authApi, getToken, setToken, type Me } from '@/lib/api'
+import { useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
+import { useIdleTimeout } from '@/hooks/useIdleTimeout'
+import {
+  authApi,
+  getExpiresAt,
+  getToken,
+  setToken,
+  type Me,
+} from '@/lib/api'
+
+const IDLE_MS = 5 * 60 * 1000
 
 type AuthContextValue = {
   user: Me | null
@@ -32,10 +43,32 @@ function hasPermission(user: Me | null, permission: string): boolean {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<Me | null>(null)
   const [loading, setLoading] = useState(true)
+  const navigate = useNavigate()
+
+  const logout = useCallback(() => {
+    setToken(null)
+    setUser(null)
+  }, [])
+
+  const endSession = useCallback(
+    (message: string) => {
+      logout()
+      toast.message(message)
+      navigate('/login', { replace: true })
+    },
+    [logout, navigate],
+  )
 
   const refresh = useCallback(async () => {
     const token = getToken()
     if (!token) {
+      setUser(null)
+      setLoading(false)
+      return
+    }
+    const expiresAt = getExpiresAt()
+    if (expiresAt != null && Date.now() >= expiresAt) {
+      setToken(null)
       setUser(null)
       setLoading(false)
       return
@@ -55,16 +88,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void refresh()
   }, [refresh])
 
+  useEffect(() => {
+    const onUnauthorized = () => {
+      endSession('Sesión expirada. Inicie sesión nuevamente.')
+    }
+    window.addEventListener('auth:unauthorized', onUnauthorized)
+    return () => window.removeEventListener('auth:unauthorized', onUnauthorized)
+  }, [endSession])
+
+  useIdleTimeout(Boolean(user), IDLE_MS, () => {
+    endSession('Sesión bloqueada por inactividad.')
+  })
+
   const login = useCallback(async (username: string, password: string) => {
     const token = await authApi.login(username, password)
-    setToken(token.access_token)
+    setToken(token.access_token, token.expires_in)
     const me = await authApi.me()
     setUser(me)
-  }, [])
-
-  const logout = useCallback(() => {
-    setToken(null)
-    setUser(null)
   }, [])
 
   const value = useMemo(

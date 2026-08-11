@@ -7,7 +7,6 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react'
-import { toast } from 'sonner'
 import { useAuth } from '@/context/AuthContext'
 import { cn } from '@/lib/utils'
 import {
@@ -343,14 +342,6 @@ export function AppSidebar() {
               to={item.to}
               end={item.end}
               title={collapsed ? item.label : undefined}
-              onClick={(e) => {
-                if (item.id === 'settings') {
-                  e.preventDefault()
-                  toast.message('Configuración', {
-                    description: 'Esta sección estará disponible pronto.',
-                  })
-                }
-              }}
               className={cn(
                 'flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900',
                 collapsed && 'justify-center px-0',
@@ -396,16 +387,14 @@ export function AppSidebar() {
                   {user?.profile ?? '—'}
                 </p>
               </div>
-              <button
-                type="button"
+              <NavLink
+                to="/perfil"
                 className="inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-white hover:text-slate-800"
-                aria-label="Más opciones"
-                onClick={() =>
-                  toast.message('Cuenta', { description: user?.username ?? 'Sesión activa' })
-                }
+                aria-label="Mi perfil"
+                title="Mi perfil"
               >
                 <MoreVertical className="size-4" />
-              </button>
+              </NavLink>
             </>
           )}
         </div>

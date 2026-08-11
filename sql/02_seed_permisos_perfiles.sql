@@ -9,7 +9,8 @@ USING (VALUES
     (N'cg:read', N'Lectura CG', N'Ver reportes CG'),
     (N'pacientes:read', N'Lectura pacientes', N'Consulta pacientes y atenciones'),
     (N'admin:users', N'Admin usuarios', N'Crear y gestionar usuarios'),
-    (N'admin:profiles', N'Admin perfiles', N'Gestionar perfiles y permisos')
+    (N'admin:profiles', N'Admin perfiles', N'Gestionar perfiles y permisos'),
+    (N'admin:sesiones', N'Seguimiento ingresos', N'Ver registro de inicios de sesión')
 ) AS s (codigo, nombre, descripcion)
 ON t.codigo = s.codigo
 WHEN NOT MATCHED THEN

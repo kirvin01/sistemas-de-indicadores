@@ -4,12 +4,17 @@ import { Toaster } from '@/components/ui/sonner'
 import { AppShell } from '@/components/layout/AppShell'
 import { AuthProvider, useAuth } from '@/context/AuthContext'
 import { LoginPage } from '@/features/auth/LoginPage'
+import { ForgotPasswordPage } from '@/features/auth/ForgotPasswordPage'
+import { ResetPasswordPage } from '@/features/auth/ResetPasswordPage'
+import { ForcePasswordDialog } from '@/features/auth/ForcePasswordDialog'
 import { HomePage } from '@/features/home/HomePage'
 import { UsersPage } from '@/features/users/UsersPage'
 import { ProfilesPage } from '@/features/profiles/ProfilesPage'
 import { PatientsPage } from '@/features/patients/PatientsPage'
 import { FedHubPage } from '@/features/fed/FedHubPage'
 import { FedStandardReportPage } from '@/features/fed/FedStandardReportPage'
+import { ProfilePage } from '@/features/profile/ProfilePage'
+import { SessionsPage } from '@/features/sessions/SessionsPage'
 import type { ReactNode } from 'react'
 
 const queryClient = new QueryClient()
@@ -24,7 +29,12 @@ function RequireAuth({ children }: { children: ReactNode }) {
     )
   }
   if (!user) return <Navigate to="/login" replace />
-  return <>{children}</>
+  return (
+    <>
+      {children}
+      <ForcePasswordDialog />
+    </>
+  )
 }
 
 function RequirePermission({
@@ -50,6 +60,8 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/olvidar-password" element={<ForgotPasswordPage />} />
+      <Route path="/restablecer" element={<ResetPasswordPage />} />
       <Route
         element={
           <RequireAuth>
@@ -58,6 +70,7 @@ function AppRoutes() {
         }
       >
         <Route path="/" element={<HomePage />} />
+        <Route path="/perfil" element={<ProfilePage />} />
         <Route
           path="/pacientes"
           element={
@@ -98,6 +111,14 @@ function AppRoutes() {
             </RequirePermission>
           }
         />
+        <Route
+          path="/admin/sesiones"
+          element={
+            <RequirePermission permission="admin:sesiones">
+              <SessionsPage />
+            </RequirePermission>
+          }
+        />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
@@ -107,12 +128,12 @@ function AppRoutes() {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <BrowserRouter>
+      <BrowserRouter>
+        <AuthProvider>
           <AppRoutes />
           <Toaster richColors position="top-right" />
-        </BrowserRouter>
-      </AuthProvider>
+        </AuthProvider>
+      </BrowserRouter>
     </QueryClientProvider>
   )
 }

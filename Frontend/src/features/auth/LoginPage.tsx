@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Eye, EyeOff, Lock, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -117,6 +117,15 @@ export function LoginPage() {
                   {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                 </button>
               </div>
+            </div>
+
+            <div className="text-right">
+              <Link
+                to="/olvidar-password"
+                className="text-xs font-medium text-primary hover:underline"
+              >
+                ¿Olvidaste tu contraseña?
+              </Link>
             </div>
 
             <Button

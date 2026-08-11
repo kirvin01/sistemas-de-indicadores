@@ -12,6 +12,7 @@ Documentar el sistema nuevo (Django Ninja + React shadcn/ui + SQL Server).
 | [02-ui-ux.md](./02-ui-ux.md) | Directrices visuales |
 | [03-pacientes.md](./03-pacientes.md) | Consulta de pacientes / atenciones HIS |
 | [04-fed.md](./04-fed.md) | Indicadores FED (MC/SI estándar) |
+| [05-auth-perfil-sesiones.md](./05-auth-perfil-sesiones.md) | Sesión, perfil, ingresos, recuperación |
 | Plan de migración | Ver plan Cursor (legado `GERESA_Convenios`) |
 
 ## Responsabilidades

@@ -29,8 +29,10 @@ Dejar operativo el entorno local: carpeta, BD `DBSISINDICADORE` y API Django Nin
 - `sql/00_create_database.sql`
 - `sql/01_schema_accounts.sql`
 - `sql/02_seed_permisos_perfiles.sql`
+- `sql/03_usuarios_perfil_sesiones.sql` (perfil, sesiones, reset)
 - `Backend/manage.py`
 - `Backend/apps/accounts/`
+- Ver también [05-auth-perfil-sesiones.md](./05-auth-perfil-sesiones.md)
 
 ## Riesgos
 

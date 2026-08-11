@@ -2,7 +2,7 @@ import {
   BarChart3,
   ClipboardList,
   LayoutDashboard,
-  Settings,
+  UserCircle,
   Users,
   type LucideIcon,
 } from 'lucide-react'
@@ -183,16 +183,22 @@ export const mainNav: NavItem[] = [
         to: '/admin/perfiles',
         permission: 'admin:profiles',
       },
+      {
+        id: 'sesiones',
+        label: 'Seguimiento de ingresos',
+        to: '/admin/sesiones',
+        permission: 'admin:sesiones',
+      },
     ],
   },
 ]
 
 export const footerNav: NavItem[] = [
   {
-    id: 'settings',
-    label: 'Configuración',
-    icon: Settings,
-    to: '/',
+    id: 'perfil',
+    label: 'Mi perfil',
+    icon: UserCircle,
+    to: '/perfil',
     end: true,
     permission: null,
   },

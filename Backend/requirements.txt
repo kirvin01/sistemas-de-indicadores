@@ -1,7 +1,14 @@
+# Sistemas de Indicadores GERESA Cusco — Backend
+# Instalar: python -m pip install -r requirements.txt
+
 Django>=5.0,<6
 django-ninja>=1.6
 django-ninja-jwt>=5.4
+PyJWT>=2.8
 mssql-django>=1.8
 pyodbc>=5.2
 python-decouple>=3.8
 django-cors-headers>=4.0
+
+# Nota: envío de correo usa django.core.mail (incluido en Django).
+# Configurar EMAIL_* en .env (ver .env.example).

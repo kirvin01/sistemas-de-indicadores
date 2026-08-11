@@ -1,14 +1,35 @@
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ?? 'http://127.0.0.1:8001/api'
 
 const TOKEN_KEY = 'sisindicadores_token'
+const EXPIRES_AT_KEY = 'sisindicadores_expires_at'
+
+const PUBLIC_401_PATHS = ['/auth/login', '/auth/forgot-password', '/auth/reset-password']
 
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY)
 }
 
-export function setToken(token: string | null) {
-  if (token) localStorage.setItem(TOKEN_KEY, token)
-  else localStorage.removeItem(TOKEN_KEY)
+export function getExpiresAt(): number | null {
+  const raw = localStorage.getItem(EXPIRES_AT_KEY)
+  if (!raw) return null
+  const n = Number(raw)
+  return Number.isFinite(n) ? n : null
+}
+
+export function setToken(token: string | null, expiresInSeconds?: number) {
+  if (token) {
+    localStorage.setItem(TOKEN_KEY, token)
+    if (typeof expiresInSeconds === 'number' && expiresInSeconds > 0) {
+      localStorage.setItem(EXPIRES_AT_KEY, String(Date.now() + expiresInSeconds * 1000))
+    }
+  } else {
+    localStorage.removeItem(TOKEN_KEY)
+    localStorage.removeItem(EXPIRES_AT_KEY)
+  }
+}
+
+export function emitUnauthorized() {
+  window.dispatchEvent(new CustomEvent('auth:unauthorized'))
 }
 
 export class ApiError extends Error {
@@ -38,13 +59,20 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   const token = getToken()
   if (token) headers.set('Authorization', `Bearer ${token}`)
 
-  const res = await fetch(`${API_URL}${path.startsWith('/') ? path : `/${path}`}`, {
+  const normalized = path.startsWith('/') ? path : `/${path}`
+  const res = await fetch(`${API_URL}${normalized}`, {
     ...init,
     headers,
   })
 
   if (res.status === 401) {
-    setToken(null)
+    const isPublic = PUBLIC_401_PATHS.some((p) => normalized.startsWith(p))
+    if (!isPublic && token) {
+      setToken(null)
+      emitUnauthorized()
+    } else if (!isPublic) {
+      setToken(null)
+    }
   }
 
   if (!res.ok) {
@@ -59,6 +87,7 @@ export type TokenResponse = {
   access_token: string
   token_type: string
   expires_in: number
+  debe_cambiar_password?: boolean
 }
 
 export type Me = {
@@ -68,6 +97,11 @@ export type Me = {
   profile_id: number
   permissions: string[]
   disabled: boolean
+  correo?: string | null
+  celular?: string | null
+  red?: string | null
+  cargo?: string | null
+  debe_cambiar_password?: boolean
 }
 
 export type Usuario = {
@@ -76,6 +110,11 @@ export type Usuario = {
   profile: string
   profile_id: number
   disabled: boolean
+  correo?: string | null
+  celular?: string | null
+  red?: string | null
+  cargo?: string | null
+  debe_cambiar_password?: boolean
 }
 
 export type Perfil = {
@@ -93,6 +132,15 @@ export type Permiso = {
   descripcion?: string | null
 }
 
+export type SesionIngreso = {
+  id: number
+  usuario_id: number
+  username: string
+  profile?: string | null
+  ingresado_en: string
+  ip?: string | null
+}
+
 export const authApi = {
   login: (username: string, password: string) =>
     apiFetch<TokenResponse>('/auth/login', {
@@ -100,15 +148,60 @@ export const authApi = {
       body: JSON.stringify({ username, password }),
     }),
   me: () => apiFetch<Me>('/auth/me'),
+  updatePerfil: (body: {
+    correo?: string | null
+    celular?: string | null
+    red?: string | null
+    cargo?: string | null
+  }) =>
+    apiFetch<Me>('/auth/me/perfil', {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+  changePassword: (body: { current_password: string; new_password: string }) =>
+    apiFetch<{ message: string }>('/auth/me/password', {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+  forgotPassword: (correo: string) =>
+    apiFetch<{ message: string }>('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ correo }),
+    }),
+  resetPassword: (token: string, password: string) =>
+    apiFetch<{ message: string }>('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ token, password }),
+    }),
+  sesiones: (params?: { username?: string; desde?: string; hasta?: string; limit?: number }) => {
+    const q = new URLSearchParams()
+    if (params?.username) q.set('username', params.username)
+    if (params?.desde) q.set('desde', params.desde)
+    if (params?.hasta) q.set('hasta', params.hasta)
+    if (params?.limit != null) q.set('limit', String(params.limit))
+    const qs = q.toString()
+    return apiFetch<SesionIngreso[]>(`/auth/sesiones${qs ? `?${qs}` : ''}`)
+  },
 }
 
 export const usersApi = {
   list: () => apiFetch<Usuario[]>('/usuarios'),
-  create: (body: { username: string; password: string; profile_id: number; disabled?: boolean }) =>
-    apiFetch<Usuario>('/usuarios', { method: 'POST', body: JSON.stringify(body) }),
+  create: (body: {
+    username: string
+    password: string
+    profile_id: number
+    disabled?: boolean
+    correo?: string | null
+  }) => apiFetch<Usuario>('/usuarios', { method: 'POST', body: JSON.stringify(body) }),
   update: (
     id: number,
-    body: { username: string; profile_id: number; disabled: boolean; password?: string | null },
+    body: {
+      username: string
+      profile_id: number
+      disabled: boolean
+      password?: string | null
+      correo?: string | null
+    },
   ) => apiFetch<Usuario>(`/usuarios/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   remove: (id: number) => apiFetch<{ message: string }>(`/usuarios/${id}`, { method: 'DELETE' }),
 }
