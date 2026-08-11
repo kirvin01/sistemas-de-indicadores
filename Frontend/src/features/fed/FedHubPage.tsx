@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { ApiError } from '@/lib/api'
 import { fedApi, type FedIndicator } from '@/lib/fedApi'
 import { cn } from '@/lib/utils'
+import { FedToolbar } from '@/features/fed/FedToolbar'
 
 type HubTree = Record<string, Record<string, FedIndicator[]>>
 
@@ -47,6 +48,7 @@ export function FedHubPage() {
 
   return (
     <div className="space-y-8">
+      <FedToolbar />
       <header className="space-y-1">
         <p className="text-sm font-medium text-teal-800/70">Indicador FED</p>
         <h2 className="text-3xl font-semibold tracking-tight">Catálogo de reportes</h2>

@@ -22,6 +22,12 @@ def listar_indicadores(request):
     return {"result": catalog.list_indicators()}
 
 
+@router.get("/config", summary="Fuentes y fechas de corte (tabla config)")
+def listar_config(request):
+    require_permission(request.auth, "fed:read")
+    return standard.get_config()
+
+
 @router.get("/{slug}/filtros", summary="Filtros del indicador")
 def filtros(request, slug: str):
     require_permission(request.auth, "fed:read")

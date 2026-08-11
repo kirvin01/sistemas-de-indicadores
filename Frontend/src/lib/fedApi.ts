@@ -80,6 +80,13 @@ export type FedResumenRow = {
   avance_pct: number
 }
 
+export type FedConfigRow = {
+  id: number
+  fuente: string
+  fecha: string | null
+  fecha_fmt: string | null
+}
+
 function qs(params: Record<string, string | number | undefined | null>) {
   const q = new URLSearchParams()
   Object.entries(params).forEach(([k, v]) => {
@@ -90,6 +97,7 @@ function qs(params: Record<string, string | number | undefined | null>) {
 
 export const fedApi = {
   list: () => apiFetch<{ result: FedIndicator[] }>('/fed/indicadores'),
+  config: () => apiFetch<{ result: FedConfigRow[] }>('/fed/config'),
   filtros: (slug: string, init?: RequestInit) =>
     apiFetch<FedFiltros>(`/fed/${slug}/filtros`, init),
   tablaCompleta: (

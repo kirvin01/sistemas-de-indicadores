@@ -36,6 +36,7 @@ import {
   type AvanceBarRow,
 } from '@/features/fed/FedCharts'
 import { FedRedesTable, FedTerritorialTable } from '@/features/fed/FedDataTables'
+import { FedToolbar } from '@/features/fed/FedToolbar'
 
 type Modo = 'territorial' | 'redes'
 type VistaTabla = 'jerarquica' | 'plana'
@@ -254,9 +255,12 @@ export function FedStandardReportPage() {
 
   if (loadingFiltros) {
     return (
-      <div className="flex h-48 items-center justify-center gap-2 text-muted-foreground">
-        <Loader2 className="size-5 animate-spin text-emerald-800" />
-        Cargando indicador…
+      <div className="space-y-4">
+        <FedToolbar />
+        <div className="flex h-48 items-center justify-center gap-2 text-muted-foreground">
+          <Loader2 className="size-5 animate-spin text-emerald-800" />
+          Cargando indicador…
+        </div>
       </div>
     )
   }
@@ -264,6 +268,7 @@ export function FedStandardReportPage() {
   if (!filtros) {
     return (
       <div className="space-y-4">
+        <FedToolbar />
         <Link
           to="/fed"
           className="inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm hover:bg-muted"
@@ -286,6 +291,7 @@ export function FedStandardReportPage() {
 
   return (
     <div className="space-y-6 md:space-y-8">
+      <FedToolbar />
       {/* Encabezado */}
       <div className="space-y-4">
         <Link

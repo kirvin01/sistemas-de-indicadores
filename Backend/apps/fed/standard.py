@@ -328,3 +328,38 @@ def get_resumen(
     except Exception as exc:  # noqa: BLE001
         raise HttpError(500, f"Error en resumen: {exc}") from exc
     return {"data": data}
+
+
+def get_config() -> dict[str, Any]:
+    """Lista completa de la tabla config (fuentes / fechas de corte)."""
+    try:
+        with connections["fed"].cursor() as cur:
+            cur.execute(
+                """
+                SELECT ID, Fuente, Fecha
+                FROM [config]
+                ORDER BY ID
+                """
+            )
+            rows = _rows(cur)
+    except Exception as exc:  # noqa: BLE001
+        raise HttpError(500, f"Error al leer config FED: {exc}") from exc
+
+    result: list[dict[str, Any]] = []
+    for row in rows:
+        fecha = row.get("Fecha")
+        if hasattr(fecha, "strftime"):
+            fecha_fmt = fecha.strftime("%d/%m/%Y")
+            fecha_iso = fecha.isoformat()
+        else:
+            fecha_fmt = str(fecha) if fecha is not None else None
+            fecha_iso = fecha_fmt
+        result.append(
+            {
+                "id": row.get("ID"),
+                "fuente": row.get("Fuente"),
+                "fecha": fecha_iso,
+                "fecha_fmt": fecha_fmt,
+            }
+        )
+    return {"result": result}
