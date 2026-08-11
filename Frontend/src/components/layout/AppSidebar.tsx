@@ -23,18 +23,31 @@ import {
 } from '@/components/layout/nav-config'
 
 const STORAGE_KEY = 'sisindicadores_sidebar_collapsed'
+const SIDEBAR_TEAL = '#0f766e'
 
 function BrandMark({ collapsed }: { collapsed: boolean }) {
   return (
-    <div className="flex w-full justify-center">
-      <img
-        src={geresaLogo}
-        alt="GERESA Cusco"
+    <div className="flex w-full flex-col items-center gap-2">
+      <div
         className={cn(
-          'object-contain',
-          collapsed ? 'h-8 w-8' : 'h-11 w-auto max-w-[9.5rem]',
+          'rounded-xl bg-white shadow-sm',
+          collapsed ? 'px-1.5 py-1.5' : 'px-2.5 py-1.5',
         )}
-      />
+      >
+        <img
+          src={geresaLogo}
+          alt="GERESA Cusco"
+          className={cn(
+            'object-contain',
+            collapsed ? 'h-8 w-8' : 'h-11 w-auto max-w-[9.5rem]',
+          )}
+        />
+      </div>
+      {!collapsed && (
+        <p className="text-center text-[11px] font-semibold tracking-wide text-white">
+          Sistemas de Indicadores
+        </p>
+      )}
     </div>
   )
 }
@@ -78,26 +91,22 @@ function NavTree({
         const open = openIds.has(node.id)
 
         if (hasKids) {
-          const isSection = depth === 0
           return (
             <li key={node.id} className="space-y-0.5">
               <button
                 type="button"
                 onClick={() => toggleOpen(node.id)}
                 className={cn(
-                  'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors',
-                  isSection
-                    ? 'text-[12px] font-medium text-slate-500 hover:bg-white/80 hover:text-slate-700'
-                    : 'text-[12px] font-medium text-slate-500 hover:bg-white/80 hover:text-slate-700',
-                  open && 'bg-white/80 text-slate-600',
+                  'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[12px] font-medium text-white/70 transition-colors hover:bg-white/10 hover:text-white',
+                  open && 'bg-white/10 text-white',
                 )}
               >
                 <ChildIcon icon={node.icon} />
                 <span className="min-w-0 flex-1 leading-snug">{node.label}</span>
                 <ChevronDown
                   className={cn(
-                    'size-3.5 shrink-0 text-slate-400 transition-transform duration-250',
-                    open && 'rotate-180 text-primary',
+                    'size-3.5 shrink-0 text-white/50 transition-transform duration-250',
+                    open && 'rotate-180 text-white',
                   )}
                 />
               </button>
@@ -107,7 +116,7 @@ function NavTree({
                   open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
                 )}
               >
-                <div className="overflow-hidden border-l border-slate-200/90 ml-3 pl-2">
+                <div className="ml-3 overflow-hidden border-l border-white/15 pl-2">
                   <NavTree
                     nodes={node.children!}
                     depth={depth + 1}
@@ -132,8 +141,8 @@ function NavTree({
                 cn(
                   'group flex items-start gap-2 rounded-lg px-2 py-1.5 transition-colors duration-200',
                   isActive
-                    ? 'bg-white text-primary shadow-sm'
-                    : 'text-slate-500 hover:bg-white/80 hover:text-slate-700',
+                    ? 'bg-white text-[#0f766e] shadow-sm'
+                    : 'text-white/70 hover:bg-white/10 hover:text-white',
                 )
               }
             >
@@ -146,15 +155,15 @@ function NavTree({
                         <span
                           className={cn(
                             'block text-[10px] font-bold tracking-wide',
-                            isActive ? 'text-primary/80' : 'text-slate-400',
+                            isActive ? 'text-[#0f766e] opacity-80' : 'text-white/50',
                           )}
                         >
                           {code}
                         </span>
-                        <span className="block text-[12px] leading-snug font-medium">{text}</span>
+                        <span className="block text-[12px] font-medium leading-snug">{text}</span>
                       </>
                     ) : (
-                      <span className="block text-[12px] leading-snug font-medium">{text}</span>
+                      <span className="block text-[12px] font-medium leading-snug">{text}</span>
                     )}
                   </span>
                 </>
@@ -240,15 +249,16 @@ export function AppSidebar() {
     <aside
       className={cn(
         'sticky top-3 z-20 m-3 flex h-[calc(100svh-1.5rem)] shrink-0 flex-col',
-        'rounded-2xl border border-border/80 bg-card',
+        'rounded-2xl border border-teal-800/40',
         'shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_32px_-20px_rgba(15,23,42,0.18)]',
         'transition-[width] duration-300 ease-out',
         collapsed ? 'w-[4.75rem]' : 'w-[17.5rem]',
       )}
+      style={{ backgroundColor: SIDEBAR_TEAL }}
     >
       <div
         className={cn(
-          'relative border-b border-border/70',
+          'relative border-b border-white/15',
           collapsed ? 'flex flex-col items-center gap-1.5 px-2 py-2.5' : 'px-3 py-3.5',
         )}
       >
@@ -259,7 +269,7 @@ export function AppSidebar() {
           type="button"
           onClick={() => setCollapsed((v) => !v)}
           className={cn(
-            'inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-slate-100 hover:text-slate-800',
+            'inline-flex size-8 items-center justify-center rounded-lg text-white/80 transition-colors hover:bg-white/10 hover:text-white',
             !collapsed && 'absolute right-2 top-1/2 -translate-y-1/2',
           )}
           aria-label={collapsed ? 'Expandir menú' : 'Colapsar menú'}
@@ -288,8 +298,8 @@ export function AppSidebar() {
                     'group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200',
                     collapsed && 'justify-center px-0',
                     isActive
-                      ? 'bg-primary text-primary-foreground shadow-sm'
-                      : 'text-slate-800 hover:bg-slate-100',
+                      ? 'bg-white text-[#0f766e] shadow-sm'
+                      : 'text-white hover:bg-white/10',
                   )
                 }
               >
@@ -309,8 +319,8 @@ export function AppSidebar() {
                   'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200',
                   collapsed && 'justify-center px-0',
                   parentActive || open
-                    ? 'bg-teal-50 text-primary'
-                    : 'text-slate-800 hover:bg-slate-100',
+                    ? 'bg-white/15 text-white'
+                    : 'text-white hover:bg-white/10',
                 )}
               >
                 <item.icon className="size-[1.1rem] shrink-0 opacity-90" />
@@ -319,8 +329,8 @@ export function AppSidebar() {
                     <span className="flex-1 truncate text-left">{item.label}</span>
                     <ChevronDown
                       className={cn(
-                        'size-4 shrink-0 text-slate-400 transition-transform duration-300',
-                        open && 'rotate-180 text-primary',
+                        'size-4 shrink-0 text-white/50 transition-transform duration-300',
+                        open && 'rotate-180 text-white',
                       )}
                     />
                   </>
@@ -335,7 +345,7 @@ export function AppSidebar() {
               >
                 <div className="overflow-hidden px-1 pb-1">
                   {item.children && (
-                    <div className="rounded-xl border border-slate-200/80 bg-slate-50/90 px-1.5 py-1.5">
+                    <div className="rounded-xl border border-white/15 bg-white/10 px-1.5 py-1.5">
                       <NavTree
                         nodes={item.children}
                         depth={0}
@@ -351,7 +361,7 @@ export function AppSidebar() {
         })}
       </nav>
 
-      <div className="space-y-0.5 border-t border-border/70 px-2.5 py-2.5">
+      <div className="space-y-0.5 border-t border-white/15 px-2.5 py-2.5">
         {footerItems.map((item) =>
           item.to ? (
             <NavLink
@@ -360,7 +370,7 @@ export function AppSidebar() {
               end={item.end}
               title={collapsed ? item.label : undefined}
               className={cn(
-                'flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-100',
+                'flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold text-white/85 transition-colors hover:bg-white/10 hover:text-white',
                 collapsed && 'justify-center px-0',
               )}
             >
@@ -375,7 +385,7 @@ export function AppSidebar() {
           onClick={logout}
           title={collapsed ? 'Cerrar sesión' : undefined}
           className={cn(
-            'flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-rose-50 hover:text-rose-700',
+            'flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold text-white/85 transition-colors hover:bg-rose-500/20 hover:text-white',
             collapsed && 'justify-center px-0',
           )}
         >
@@ -384,29 +394,27 @@ export function AppSidebar() {
         </button>
       </div>
 
-      <div className="border-t border-border/70 p-2.5">
+      <div className="border-t border-white/15 p-2.5">
         <div
           className={cn(
-            'flex items-center gap-3 rounded-xl border border-border/60 bg-slate-50/90 px-2.5 py-2',
+            'flex items-center gap-3 rounded-xl border border-white/15 bg-white/10 px-2.5 py-2',
             collapsed && 'justify-center border-0 bg-transparent px-0',
           )}
         >
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/12 text-xs font-bold text-primary ring-2 ring-white">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white text-xs font-bold text-[#0f766e] ring-2 ring-white/30">
             {initials}
           </div>
           {!collapsed && (
             <>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-slate-800">
+                <p className="truncate text-sm font-semibold text-white">
                   {user?.username ?? 'Usuario'}
                 </p>
-                <p className="truncate text-[11px] text-muted-foreground">
-                  {user?.profile ?? '—'}
-                </p>
+                <p className="truncate text-[11px] text-white/65">{user?.profile ?? '—'}</p>
               </div>
               <NavLink
                 to="/perfil"
-                className="inline-flex size-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-white hover:text-slate-800"
+                className="inline-flex size-8 items-center justify-center rounded-lg text-white/70 hover:bg-white/10 hover:text-white"
                 aria-label="Mi perfil"
                 title="Mi perfil"
               >
