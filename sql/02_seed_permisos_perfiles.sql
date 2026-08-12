@@ -6,6 +6,7 @@ MERGE dbo.permisos AS t
 USING (VALUES
     (N'*', N'Todo', N'Acceso total'),
     (N'fed:read', N'Lectura FED', N'Ver indicadores FED'),
+    (N'nutricion:read', N'Lectura Nutrición', N'Ver indicadores de Nutrición'),
     (N'cg:read', N'Lectura CG', N'Ver reportes CG'),
     (N'pacientes:read', N'Lectura pacientes', N'Consulta pacientes y atenciones'),
     (N'admin:users', N'Admin usuarios', N'Crear y gestionar usuarios'),
@@ -43,7 +44,7 @@ WHERE p.codigo = N'admin' AND perm.codigo = N'*';
 INSERT INTO dbo.perfil_permisos (perfil_id, permiso_id)
 SELECT p.id, perm.id
 FROM dbo.perfiles p
-INNER JOIN dbo.permisos perm ON perm.codigo IN (N'fed:read', N'pacientes:read')
+INNER JOIN dbo.permisos perm ON perm.codigo IN (N'fed:read', N'nutricion:read', N'pacientes:read')
 WHERE p.codigo = N'fed';
 
 INSERT INTO dbo.perfil_permisos (perfil_id, permiso_id)

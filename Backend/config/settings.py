@@ -23,6 +23,7 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.patients",
     "apps.fed",
+    "apps.nutricion",
 ]
 
 MIDDLEWARE = [
@@ -84,6 +85,8 @@ DATABASES = {
     "geresa": _mssql_db(config("DB_GERESA_NAME", default="DBGERESA")),
     # Solo lectura indicadores FED
     "fed": _mssql_db(config("DB_FED_NAME", default="DBFED2026")),
+    # Solo lectura indicadores Nutrición
+    "nutricion": _mssql_db(config("DB_NUTRICION_NAME", default="DBNUTRICION")),
 }
 
 AUTH_PASSWORD_VALIDATORS = [

@@ -24,11 +24,12 @@ from apps.accounts.schemas import (
 from apps.accounts.security import auth_bearer, require_permission
 from apps.patients.api import router as patients_router
 from apps.fed.api import router as fed_router
+from apps.nutricion.api import router as nutricion_router
 
 api = NinjaAPI(
     title="Sistemas de Indicadores GERESA CUSCO",
     version="0.5.0",
-    description="API Django Ninja — auth, usuarios, perfiles, pacientes e indicadores FED",
+    description="API Django Ninja — auth, usuarios, perfiles, pacientes, FED y Nutrición",
 )
 
 auth_router = Router(tags=["Autenticación"])
@@ -212,3 +213,4 @@ api.add_router("/usuarios", users_router)
 api.add_router("/perfiles", profiles_router)
 api.add_router("/", patients_router)
 api.add_router("/fed", fed_router)
+api.add_router("/nutricion", nutricion_router)

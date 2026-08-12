@@ -13,6 +13,8 @@ import { ProfilesPage } from '@/features/profiles/ProfilesPage'
 import { PatientsPage } from '@/features/patients/PatientsPage'
 import { FedHubPage } from '@/features/fed/FedHubPage'
 import { FedStandardReportPage } from '@/features/fed/FedStandardReportPage'
+import { NutricionHubPage } from '@/features/nutricion/NutricionHubPage'
+import { NutricionReportPage } from '@/features/nutricion/NutricionReportPage'
 import { ProfilePage } from '@/features/profile/ProfilePage'
 import { SessionsPage } from '@/features/sessions/SessionsPage'
 import type { ReactNode } from 'react'
@@ -92,6 +94,22 @@ function AppRoutes() {
           element={
             <RequirePermission permission="fed:read">
               <FedStandardReportPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="/nutricion"
+          element={
+            <RequirePermission permission="nutricion:read">
+              <NutricionHubPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="/nutricion/:slug"
+          element={
+            <RequirePermission permission="nutricion:read">
+              <NutricionReportPage />
             </RequirePermission>
           }
         />
