@@ -1,4 +1,4 @@
-"""Motor de consultas Nutrición — solo ámbito redes; avance = SUM(Avance_Meta)/MAX(Meta) por EESS."""
+"""Motor Nutrición — redes; avance YTD (ene…mes) / meta anual MAX(Meta) por EESS."""
 
 from __future__ import annotations
 
@@ -63,13 +63,16 @@ def _build_filters(
     red: str | None = None,
     microred: str | None = None,
 ) -> tuple[str, list[Any]]:
+    """Si se pasa mes, filtra acumulado YTD: orden_mes <= mes seleccionado."""
     filters: list[str] = []
     params: list[Any] = []
     if anio is not None:
         filters.append(f"{_anio(meta)} = %s")
         params.append(anio)
     if mes:
-        filters.append(f"UPPER({_mes(meta)}) = UPPER(%s)")
+        mes_ord_col = MES_ORDER.format(mes=_mes(meta))
+        mes_ord_cut = MES_ORDER.format(mes="%s")
+        filters.append(f"({mes_ord_col}) <= ({mes_ord_cut})")
         params.append(mes)
     if red:
         filters.append("UPPER(RED) = UPPER(%s)")
@@ -88,26 +91,53 @@ def _pct_expr(avance_col: str = "avance", meta_col: str = "meta") -> str:
     )
 
 
-def _eess_cte(meta: IndicatorMeta, where: str) -> str:
-    """CTE: un registro por establecimiento (SUM Avance_Meta, MAX Meta)."""
+def _eess_ytd_cte(
+    meta: IndicatorMeta,
+    where_ytd: str,
+    where_anual: str,
+) -> str:
+    """Meta anual por EESS (universo del año) + avance YTD (0 si aún no hay)."""
     t = _table(meta)
     eess = _eess_expr(meta)
     return f"""
-    eess AS (
+    base_anual AS (
         SELECT
             ISNULL(RED, 'SIN RED') AS RED,
             ISNULL(MICRORED, 'SIN MICRORED') AS MICRORED,
             ESTABLECIMIENTO,
             {eess} AS eess_key,
-            SUM(CAST(Avance_Meta AS FLOAT)) AS avance,
-            MAX(CAST(Meta AS FLOAT)) AS meta
+            CAST(Meta AS FLOAT) AS meta
         FROM {t}
-        {where}
-        GROUP BY
-            ISNULL(RED, 'SIN RED'),
-            ISNULL(MICRORED, 'SIN MICRORED'),
-            ESTABLECIMIENTO,
-            {eess}
+        {where_anual}
+    ),
+    meta_anual AS (
+        SELECT
+            eess_key,
+            MAX(RED) AS RED,
+            MAX(MICRORED) AS MICRORED,
+            MAX(ESTABLECIMIENTO) AS ESTABLECIMIENTO,
+            MAX(meta) AS meta
+        FROM base_anual
+        GROUP BY eess_key
+    ),
+    avance_ytd AS (
+        SELECT
+            {eess} AS eess_key,
+            SUM(CAST(Avance_Meta AS FLOAT)) AS avance
+        FROM {t}
+        {where_ytd}
+        GROUP BY {eess}
+    ),
+    eess AS (
+        SELECT
+            m.RED,
+            m.MICRORED,
+            m.ESTABLECIMIENTO,
+            m.eess_key,
+            ISNULL(a.avance, 0) AS avance,
+            ISNULL(m.meta, 0) AS meta
+        FROM meta_anual m
+        LEFT JOIN avance_ytd a ON a.eess_key = m.eess_key
     )
     """
 
@@ -163,8 +193,15 @@ def get_tabla_redes(
     red: str | None = None,
     microred: str | None = None,
 ) -> dict[str, Any]:
-    where, params = _build_filters(meta, anio=anio, mes=mes, red=red, microred=microred)
-    cte = _eess_cte(meta, where)
+    where_ytd, params_ytd = _build_filters(
+        meta, anio=anio, mes=mes, red=red, microred=microred
+    )
+    where_anual, params_anual = _build_filters(
+        meta, anio=anio, red=red, microred=microred
+    )
+    cte = _eess_ytd_cte(meta, where_ytd, where_anual)
+    # CTE: primero where_anual (meta), luego where_ytd (avance)
+    params = params_anual + params_ytd
     pct = _pct_expr()
     try:
         with connections["nutricion"].cursor() as cur:
@@ -235,6 +272,7 @@ def get_resumen(
     anio: int | None = None,
     red: str | None = None,
 ) -> dict[str, Any]:
+    """Serie mensual con avance acumulado YTD y meta anual fija."""
     where, params = _build_filters(meta, anio=anio, red=red)
     t = _table(meta)
     anio_c = _anio(meta)
@@ -245,7 +283,7 @@ def get_resumen(
         with connections["nutricion"].cursor() as cur:
             cur.execute(
                 f"""
-                ;WITH eess AS (
+                ;WITH eess_mes AS (
                     SELECT
                         {anio_c} AS anio,
                         UPPER({mes_c}) AS MES,
@@ -255,18 +293,49 @@ def get_resumen(
                     FROM {t}
                     {where}
                     GROUP BY {anio_c}, UPPER({mes_c}), {eess}
+                ),
+                meta_anual AS (
+                    SELECT anio, eess_key, MAX(meta) AS meta
+                    FROM eess_mes
+                    GROUP BY anio, eess_key
+                ),
+                den_anual AS (
+                    SELECT anio, SUM(meta) AS total_denominador
+                    FROM meta_anual
+                    GROUP BY anio
+                ),
+                avance_mes AS (
+                    SELECT
+                        anio,
+                        MES,
+                        {mes_ord} AS orden,
+                        SUM(avance) AS avance_mes
+                    FROM eess_mes
+                    GROUP BY anio, MES
+                ),
+                ytd AS (
+                    SELECT
+                        anio,
+                        MES,
+                        orden,
+                        SUM(avance_mes) OVER (
+                            PARTITION BY anio
+                            ORDER BY orden
+                            ROWS UNBOUNDED PRECEDING
+                        ) AS total_numerador
+                    FROM avance_mes
                 )
                 SELECT
-                    anio,
-                    MES,
-                    SUM(meta) AS total_denominador,
-                    SUM(avance) AS total_numerador,
-                    CASE WHEN SUM(meta) > 0 THEN
-                        ROUND(CAST(SUM(avance) AS FLOAT) / SUM(meta) * 100, 2)
+                    y.anio,
+                    y.MES,
+                    d.total_denominador,
+                    y.total_numerador,
+                    CASE WHEN d.total_denominador > 0 THEN
+                        ROUND(CAST(y.total_numerador AS FLOAT) / d.total_denominador * 100, 2)
                     ELSE 0 END AS avance_pct
-                FROM eess
-                GROUP BY anio, MES
-                ORDER BY anio, {mes_ord}
+                FROM ytd y
+                INNER JOIN den_anual d ON d.anio = y.anio
+                ORDER BY y.anio, y.orden
                 """,
                 params,
             )

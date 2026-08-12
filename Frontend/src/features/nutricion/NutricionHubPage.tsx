@@ -39,8 +39,8 @@ export function NutricionHubPage() {
         <p className="text-sm font-medium text-teal-800/70">Nutrición</p>
         <h2 className="text-3xl font-semibold tracking-tight">Indicadores de Nutrición</h2>
         <p className="max-w-2xl text-muted-foreground">
-          Evaluación por Redes Integradas de Salud. Avance = suma de Avance_Meta / meta por
-          establecimiento (máximo Meta por RENAES).
+          Evaluación por Redes Integradas de Salud. Meta anual por establecimiento; avance
+          acumulado de enero al mes seleccionado (Σ Avance_Meta / MAX Meta).
         </p>
       </header>
 

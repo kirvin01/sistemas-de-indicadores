@@ -237,8 +237,8 @@ export function NutricionReportPage() {
               {filtros.nombre}
             </h2>
             <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
-              Redes Integradas de Salud · Meta = máximo por establecimiento · Avance = suma
-              Avance_Meta
+              Redes Integradas de Salud · Meta anual por establecimiento · Avance acumulado
+              de enero al mes seleccionado
             </p>
           </div>
         </div>
@@ -374,7 +374,7 @@ export function NutricionReportPage() {
             </div>
             <div className={cn('p-4', cardSurface)}>
               <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                Meta (Σ máx. EESS)
+                Meta anual (Σ máx. EESS)
               </p>
               <p className="mt-1 text-3xl font-bold tabular-nums text-slate-800">
                 {fmtN(total?.denominador)}
@@ -382,7 +382,7 @@ export function NutricionReportPage() {
             </div>
             <div className={cn('p-4', cardSurface)}>
               <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                Avance Meta (Σ)
+                Avance acumulado (Σ)
               </p>
               <p className="mt-1 text-3xl font-bold tabular-nums text-slate-800">
                 {fmtN(total?.numerador)}
