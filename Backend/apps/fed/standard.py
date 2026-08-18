@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import defaultdict
 from typing import Any
 
 from django.db import connections
@@ -21,6 +22,21 @@ MES_ORDER = """
     END
 """
 
+_MES_RANK = {
+    "ENERO": 1,
+    "FEBRERO": 2,
+    "MARZO": 3,
+    "ABRIL": 4,
+    "MAYO": 5,
+    "JUNIO": 6,
+    "JULIO": 7,
+    "AGOSTO": 8,
+    "SEPTIEMBRE": 9,
+    "OCTUBRE": 10,
+    "NOVIEMBRE": 11,
+    "DICIEMBRE": 12,
+}
+
 
 def _rows(cursor) -> list[dict[str, Any]]:
     cols = [c[0] for c in cursor.description]
@@ -35,6 +51,19 @@ def _row(cursor) -> dict[str, Any] | None:
 def _table(meta: IndicatorMeta) -> str:
     # Nombre de tabla controlado por catálogo (no input de usuario)
     return f"[{meta['tabla']}]"
+
+
+def _num(v: Any) -> float:
+    try:
+        return float(v or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _pct(numerador: float, denominador: float) -> float:
+    if denominador <= 0:
+        return 0.0
+    return round(numerador / denominador * 100, 2)
 
 
 def _build_filters(
@@ -82,42 +111,10 @@ def _avance_expr() -> str:
 
 
 def get_filtros(meta: IndicatorMeta) -> dict[str, Any]:
+    """Un solo DISTINCT de combinaciones → listas en Python (evita 7–8 scans)."""
     t = _table(meta)
     try:
         with connections["fed"].cursor() as cur:
-            cur.execute(f"SELECT DISTINCT [año] FROM {t} ORDER BY [año]")
-            anios = [r["año"] for r in _rows(cur)]
-
-            cur.execute(
-                f"SELECT DISTINCT MES, {MES_ORDER} AS orden FROM {t} ORDER BY orden"
-            )
-            meses = [r["MES"] for r in _rows(cur)]
-
-            cur.execute(f"SELECT DISTINCT DEPARTAMENTO FROM {t} ORDER BY DEPARTAMENTO")
-            departamentos = [r["DEPARTAMENTO"] for r in _rows(cur)]
-
-            cur.execute(
-                f"SELECT DISTINCT DEPARTAMENTO, PROVINCIA FROM {t} "
-                "ORDER BY DEPARTAMENTO, PROVINCIA"
-            )
-            provincias = [
-                {"departamento": r["DEPARTAMENTO"], "provincia": r["PROVINCIA"]}
-                for r in _rows(cur)
-            ]
-
-            cur.execute(
-                f"SELECT DISTINCT RED FROM {t} WHERE RED IS NOT NULL ORDER BY RED"
-            )
-            redes = [r["RED"] for r in _rows(cur)]
-
-            cur.execute(
-                f"SELECT DISTINCT RED, MICRORED FROM {t} "
-                "WHERE MICRORED IS NOT NULL ORDER BY RED, MICRORED"
-            )
-            microredes = [
-                {"red": r["RED"], "microred": r["MICRORED"]} for r in _rows(cur)
-            ]
-
             cur.execute(
                 """
                 SELECT 1 AS ok
@@ -126,24 +123,71 @@ def get_filtros(meta: IndicatorMeta) -> dict[str, Any]:
                 """,
                 [meta["tabla"]],
             )
-            categorias: list[str] = []
-            if _row(cur):
+            has_categoria = _row(cur) is not None
+
+            if has_categoria:
                 cur.execute(
-                    f"SELECT DISTINCT CATEGORIA FROM {t} "
-                    "WHERE CATEGORIA IS NOT NULL ORDER BY CATEGORIA"
+                    f"""
+                    SELECT DISTINCT [año], MES, DEPARTAMENTO, PROVINCIA, RED, MICRORED, CATEGORIA
+                    FROM {t}
+                    """
                 )
-                categorias = [r["CATEGORIA"] for r in _rows(cur)]
+            else:
+                cur.execute(
+                    f"""
+                    SELECT DISTINCT [año], MES, DEPARTAMENTO, PROVINCIA, RED, MICRORED
+                    FROM {t}
+                    """
+                )
+            combos = _rows(cur)
     except Exception as exc:  # noqa: BLE001
         raise HttpError(500, f"Error al leer filtros FED: {exc}") from exc
 
+    anios_set: set[int] = set()
+    meses_set: set[str] = set()
+    departamentos_set: set[str] = set()
+    provincias_set: set[tuple[str, str]] = set()
+    redes_set: set[str] = set()
+    microredes_set: set[tuple[str, str]] = set()
+    categorias_set: set[str] = set()
+
+    for r in combos:
+        anio = r.get("año")
+        if anio is not None:
+            anios_set.add(int(anio))
+        mes = r.get("MES")
+        if mes is not None:
+            meses_set.add(str(mes).upper())
+        dep = r.get("DEPARTAMENTO")
+        prov = r.get("PROVINCIA")
+        if dep is not None:
+            departamentos_set.add(str(dep))
+        if dep is not None and prov is not None:
+            provincias_set.add((str(dep), str(prov)))
+        red = r.get("RED")
+        micro = r.get("MICRORED")
+        if red is not None:
+            redes_set.add(str(red))
+        if red is not None and micro is not None:
+            microredes_set.add((str(red), str(micro)))
+        cat = r.get("CATEGORIA")
+        if cat is not None:
+            categorias_set.add(str(cat))
+
     return {
-        "anios": anios,
-        "meses": meses,
-        "departamentos": departamentos,
-        "provincias": provincias,
-        "redes": redes,
-        "microredes": microredes,
-        "categorias": categorias,
+        "anios": sorted(anios_set),
+        "meses": sorted(meses_set, key=lambda m: _MES_RANK.get(m, 99)),
+        "departamentos": sorted(departamentos_set),
+        "provincias": [
+            {"departamento": d, "provincia": p}
+            for d, p in sorted(provincias_set, key=lambda x: (x[0], x[1]))
+        ],
+        "redes": sorted(redes_set),
+        "microredes": [
+            {"red": r, "microred": m}
+            for r, m in sorted(microredes_set, key=lambda x: (x[0], x[1]))
+        ],
+        "categorias": sorted(categorias_set),
         "meta_pct": meta["meta_pct"],
         "codigo": meta["codigo"],
         "nombre": meta["nombre"],
@@ -185,29 +229,40 @@ def get_tabla_completa(
                 params,
             )
             distritos = _rows(cur)
-
-            cur.execute(
-                f"""
-                SELECT DEPARTAMENTO, PROVINCIA,
-                    SUM(denominador) AS denominador, SUM(numerador) AS numerador, {avance}
-                FROM {t} {where}
-                GROUP BY DEPARTAMENTO, PROVINCIA
-                ORDER BY DEPARTAMENTO, PROVINCIA
-                """,
-                params,
-            )
-            provincias = _rows(cur)
-
-            cur.execute(
-                f"""
-                SELECT SUM(denominador) AS denominador, SUM(numerador) AS numerador, {avance}
-                FROM {t} {where}
-                """,
-                params,
-            )
-            total = _row(cur) or {"denominador": 0, "numerador": 0, "avance_pct": 0}
     except Exception as exc:  # noqa: BLE001
         raise HttpError(500, f"Error en tabla-completa: {exc}") from exc
+
+    prov_acc: dict[tuple[Any, Any], dict[str, float]] = defaultdict(
+        lambda: {"denominador": 0.0, "numerador": 0.0}
+    )
+    total_d = 0.0
+    total_n = 0.0
+    for d in distritos:
+        key = (d.get("DEPARTAMENTO"), d.get("PROVINCIA"))
+        den = _num(d.get("denominador"))
+        num = _num(d.get("numerador"))
+        prov_acc[key]["denominador"] += den
+        prov_acc[key]["numerador"] += num
+        total_d += den
+        total_n += num
+
+    provincias = [
+        {
+            "DEPARTAMENTO": dep,
+            "PROVINCIA": prov,
+            "denominador": acc["denominador"],
+            "numerador": acc["numerador"],
+            "avance_pct": _pct(acc["numerador"], acc["denominador"]),
+        }
+        for (dep, prov), acc in sorted(
+            prov_acc.items(), key=lambda x: (str(x[0][0]), str(x[0][1]))
+        )
+    ]
+    total = {
+        "denominador": total_d,
+        "numerador": total_n,
+        "avance_pct": _pct(total_n, total_d),
+    }
 
     return {
         "anio": anio,
@@ -254,41 +309,55 @@ def get_tabla_redes(
                 params,
             )
             establecimientos = _rows(cur)
-
-            cur.execute(
-                f"""
-                SELECT ISNULL(RED,'SIN RED') AS RED, ISNULL(MICRORED,'SIN MICRORED') AS MICRORED,
-                    SUM(denominador) AS denominador, SUM(numerador) AS numerador, {avance}
-                FROM {t} {where}
-                GROUP BY RED, MICRORED
-                ORDER BY RED, MICRORED
-                """,
-                params,
-            )
-            microredes = _rows(cur)
-
-            cur.execute(
-                f"""
-                SELECT ISNULL(RED,'SIN RED') AS RED,
-                    SUM(denominador) AS denominador, SUM(numerador) AS numerador, {avance}
-                FROM {t} {where}
-                GROUP BY RED
-                ORDER BY RED
-                """,
-                params,
-            )
-            redes = _rows(cur)
-
-            cur.execute(
-                f"""
-                SELECT SUM(denominador) AS denominador, SUM(numerador) AS numerador, {avance}
-                FROM {t} {where}
-                """,
-                params,
-            )
-            total = _row(cur) or {"denominador": 0, "numerador": 0, "avance_pct": 0}
     except Exception as exc:  # noqa: BLE001
         raise HttpError(500, f"Error en tabla-redes: {exc}") from exc
+
+    mr_acc: dict[tuple[Any, Any], dict[str, float]] = defaultdict(
+        lambda: {"denominador": 0.0, "numerador": 0.0}
+    )
+    red_acc: dict[Any, dict[str, float]] = defaultdict(
+        lambda: {"denominador": 0.0, "numerador": 0.0}
+    )
+    total_d = 0.0
+    total_n = 0.0
+    for e in establecimientos:
+        red_name = e.get("RED")
+        micro_name = e.get("MICRORED")
+        den = _num(e.get("denominador"))
+        num = _num(e.get("numerador"))
+        mr_acc[(red_name, micro_name)]["denominador"] += den
+        mr_acc[(red_name, micro_name)]["numerador"] += num
+        red_acc[red_name]["denominador"] += den
+        red_acc[red_name]["numerador"] += num
+        total_d += den
+        total_n += num
+
+    microredes = [
+        {
+            "RED": red_name,
+            "MICRORED": micro_name,
+            "denominador": acc["denominador"],
+            "numerador": acc["numerador"],
+            "avance_pct": _pct(acc["numerador"], acc["denominador"]),
+        }
+        for (red_name, micro_name), acc in sorted(
+            mr_acc.items(), key=lambda x: (str(x[0][0]), str(x[0][1]))
+        )
+    ]
+    redes = [
+        {
+            "RED": red_name,
+            "denominador": acc["denominador"],
+            "numerador": acc["numerador"],
+            "avance_pct": _pct(acc["numerador"], acc["denominador"]),
+        }
+        for red_name, acc in sorted(red_acc.items(), key=lambda x: str(x[0]))
+    ]
+    total = {
+        "denominador": total_d,
+        "numerador": total_n,
+        "avance_pct": _pct(total_n, total_d),
+    }
 
     return {
         "anio": anio,

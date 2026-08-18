@@ -100,16 +100,12 @@ export function NutricionReportPage() {
     async (signal?: AbortSignal) => {
       if (!slug || !anio || !mes) return
       setLoadingData(true)
-      const params = {
-        anio,
-        mes,
-        red: red !== 'all' ? red : undefined,
-        microred: microred !== 'all' ? microred : undefined,
-      }
+      // Sin red/microred en API: filtrado client-side (cambio de filtro instantáneo)
+      const params = { anio, mes }
       try {
         const [t, s] = await Promise.all([
           nutricionApi.tablaRedes(slug, params, { signal }),
-          nutricionApi.resumen(slug, { anio, red: params.red }, { signal }),
+          nutricionApi.resumen(slug, { anio }, { signal }),
         ])
         setRedes(t)
         setResumen(s.data)
@@ -120,7 +116,7 @@ export function NutricionReportPage() {
         setLoadingData(false)
       }
     },
-    [slug, anio, mes, red, microred],
+    [slug, anio, mes],
   )
 
   useEffect(() => {
@@ -136,7 +132,33 @@ export function NutricionReportPage() {
   }, [filtros, red])
 
   const metaRef = 100
-  const total = redes?.total
+
+  const total = useMemo(() => {
+    if (!redes) return undefined
+    if (red !== 'all' && microred !== 'all') {
+      const rows = redes.establecimientos.filter(
+        (e) => e.RED === red && e.MICRORED === microred,
+      )
+      const numerador = rows.reduce((s, r) => s + Number(r.numerador || 0), 0)
+      const denominador = rows.reduce((s, r) => s + Number(r.denominador || 0), 0)
+      return {
+        numerador,
+        denominador,
+        avance_pct: denominador > 0 ? Math.round((numerador / denominador) * 10000) / 100 : 0,
+      }
+    }
+    if (red !== 'all') {
+      const row = redes.redes.find((r) => r.RED === red)
+      return row
+        ? {
+            numerador: Number(row.numerador),
+            denominador: Number(row.denominador),
+            avance_pct: Number(row.avance_pct),
+          }
+        : undefined
+    }
+    return redes.total
+  }, [redes, red, microred])
 
   const chartData: AvanceBarRow[] = useMemo(() => {
     if (!redes) return []

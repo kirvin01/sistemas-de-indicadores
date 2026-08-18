@@ -124,29 +124,27 @@ export function FedStandardReportPage() {
     async (signal?: AbortSignal) => {
       if (!slug || !anio || !mes) return
       setLoadingData(true)
-      const params = {
-        anio,
-        mes,
-        provincia: modo === 'territorial' && provincia !== 'all' ? provincia : undefined,
-        red: modo === 'redes' && red !== 'all' ? red : undefined,
-        microred: modo === 'redes' && microred !== 'all' ? microred : undefined,
-      }
+      // Carga sin red/microred/provincia: el filtrado es client-side (más rápido al cambiar filtros)
+      const params = { anio, mes }
       try {
-        const [t, r, s] = await Promise.all([
-          fedApi.tablaCompleta(slug, params, { signal }),
-          fedApi.tablaRedes(slug, params, { signal }),
-          fedApi.resumen(
-            slug,
-            {
-              anio,
-              red: params.red,
-            },
-            { signal },
-          ),
-        ])
-        setTabla(t)
-        setRedes(r)
-        setResumen(s.data)
+        const resumenP = fedApi.resumen(slug, { anio }, { signal })
+        if (modo === 'redes') {
+          const [r, s] = await Promise.all([
+            fedApi.tablaRedes(slug, params, { signal }),
+            resumenP,
+          ])
+          setRedes(r)
+          setTabla(null)
+          setResumen(s.data)
+        } else {
+          const [t, s] = await Promise.all([
+            fedApi.tablaCompleta(slug, params, { signal }),
+            resumenP,
+          ])
+          setTabla(t)
+          setRedes(null)
+          setResumen(s.data)
+        }
       } catch (err: unknown) {
         if (err instanceof DOMException && err.name === 'AbortError') return
         toast.error(err instanceof ApiError ? err.message : 'Error al cargar el reporte')
@@ -154,7 +152,7 @@ export function FedStandardReportPage() {
         setLoadingData(false)
       }
     },
-    [slug, anio, mes, provincia, red, microred, modo],
+    [slug, anio, mes, modo],
   )
 
   useEffect(() => {
@@ -177,7 +175,47 @@ export function FedStandardReportPage() {
   }, [filtros, red])
 
   const meta = filtros?.meta_pct ?? 40.7
-  const total = isRedes ? redes?.total : tabla?.total
+  const total = useMemo(() => {
+    if (isRedes && redes) {
+      if (red !== 'all' && microred !== 'all') {
+        const rows = redes.establecimientos.filter(
+          (e) => e.RED === red && e.MICRORED === microred,
+        )
+        const numerador = rows.reduce((s, r) => s + Number(r.numerador || 0), 0)
+        const denominador = rows.reduce((s, r) => s + Number(r.denominador || 0), 0)
+        return {
+          numerador,
+          denominador,
+          avance_pct: denominador > 0 ? Math.round((numerador / denominador) * 10000) / 100 : 0,
+        }
+      }
+      if (red !== 'all') {
+        const row = redes.redes.find((r) => r.RED === red)
+        return row
+          ? {
+              numerador: Number(row.numerador),
+              denominador: Number(row.denominador),
+              avance_pct: Number(row.avance_pct),
+            }
+          : undefined
+      }
+      return redes.total
+    }
+    if (!isRedes && tabla) {
+      if (provincia !== 'all') {
+        const row = tabla.provincias.find((p) => p.PROVINCIA === provincia)
+        return row
+          ? {
+              numerador: Number(row.numerador),
+              denominador: Number(row.denominador),
+              avance_pct: Number(row.avance_pct),
+            }
+          : undefined
+      }
+      return tabla.total
+    }
+    return undefined
+  }, [isRedes, redes, tabla, red, microred, provincia])
   const mesLabel = isRedes ? redes?.mes : tabla?.mes
   const anioLabel = isRedes ? redes?.anio : tabla?.anio
 

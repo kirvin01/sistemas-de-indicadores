@@ -110,12 +110,14 @@ function AvanceChartBody({
           fill={chartTheme.comparative}
           radius={[5, 5, 0, 0]}
           maxBarSize={dense ? 32 : 48}
+          isAnimationActive={false}
         />
         <Bar
           dataKey="Numerador"
           fill={chartTheme.progress}
           radius={[5, 5, 0, 0]}
           maxBarSize={dense ? 32 : 48}
+          isAnimationActive={false}
         >
           <LabelList
             dataKey="Numerador"

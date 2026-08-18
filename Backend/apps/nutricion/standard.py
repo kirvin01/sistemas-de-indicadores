@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import defaultdict
 from typing import Any
 
 from django.db import connections
@@ -20,6 +21,21 @@ MES_ORDER = """
         ELSE 99
     END
 """
+
+_MES_RANK = {
+    "ENERO": 1,
+    "FEBRERO": 2,
+    "MARZO": 3,
+    "ABRIL": 4,
+    "MAYO": 5,
+    "JUNIO": 6,
+    "JULIO": 7,
+    "AGOSTO": 8,
+    "SEPTIEMBRE": 9,
+    "OCTUBRE": 10,
+    "NOVIEMBRE": 11,
+    "DICIEMBRE": 12,
+}
 
 
 def _rows(cursor) -> list[dict[str, Any]]:
@@ -55,6 +71,19 @@ def _eess_expr(meta: IndicatorMeta) -> str:
     return "ESTABLECIMIENTO"
 
 
+def _num(v: Any) -> float:
+    try:
+        return float(v or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _pct(numerador: float, denominador: float) -> float:
+    if denominador <= 0:
+        return 0.0
+    return round(numerador / denominador * 100, 2)
+
+
 def _build_filters(
     meta: IndicatorMeta,
     *,
@@ -82,13 +111,6 @@ def _build_filters(
         params.append(microred)
     where = ("WHERE " + " AND ".join(filters)) if filters else ""
     return where, params
-
-
-def _pct_expr(avance_col: str = "avance", meta_col: str = "meta") -> str:
-    return (
-        f"CASE WHEN SUM({meta_col}) > 0 THEN "
-        f"ROUND(CAST(SUM({avance_col}) AS FLOAT) / SUM({meta_col}) * 100, 2) ELSE 0 END AS avance_pct"
-    )
 
 
 def _eess_ytd_cte(
@@ -143,43 +165,46 @@ def _eess_ytd_cte(
 
 
 def get_filtros(meta: IndicatorMeta) -> dict[str, Any]:
+    """Un solo DISTINCT → listas en Python (evita 4 scans)."""
     t = _table(meta)
     anio_c = _anio(meta)
     mes_c = _mes(meta)
-    mes_ord = MES_ORDER.format(mes=mes_c)
     try:
         with connections["nutricion"].cursor() as cur:
-            cur.execute(f"SELECT DISTINCT {anio_c} AS anio FROM {t} ORDER BY anio")
-            anios = [int(r["anio"]) for r in _rows(cur) if r["anio"] is not None]
-
-            cur.execute(
-                f"SELECT DISTINCT {mes_c} AS MES, {mes_ord} AS orden FROM {t} ORDER BY orden"
-            )
-            meses = [str(r["MES"]).upper() for r in _rows(cur) if r["MES"] is not None]
-
-            cur.execute(
-                f"SELECT DISTINCT RED FROM {t} WHERE RED IS NOT NULL ORDER BY RED"
-            )
-            redes = [r["RED"] for r in _rows(cur)]
-
             cur.execute(
                 f"""
-                SELECT DISTINCT RED, MICRORED FROM {t}
-                WHERE MICRORED IS NOT NULL
-                ORDER BY RED, MICRORED
+                SELECT DISTINCT {anio_c} AS anio, {mes_c} AS MES, RED, MICRORED
+                FROM {t}
                 """
             )
-            microredes = [
-                {"red": r["RED"], "microred": r["MICRORED"]} for r in _rows(cur)
-            ]
+            combos = _rows(cur)
     except Exception as exc:  # noqa: BLE001
         raise HttpError(500, f"Error al leer filtros Nutrición: {exc}") from exc
 
+    anios_set: set[int] = set()
+    meses_set: set[str] = set()
+    redes_set: set[str] = set()
+    microredes_set: set[tuple[str, str]] = set()
+    for r in combos:
+        if r.get("anio") is not None:
+            anios_set.add(int(r["anio"]))
+        if r.get("MES") is not None:
+            meses_set.add(str(r["MES"]).upper())
+        red = r.get("RED")
+        micro = r.get("MICRORED")
+        if red is not None:
+            redes_set.add(str(red))
+        if red is not None and micro is not None:
+            microredes_set.add((str(red), str(micro)))
+
     return {
-        "anios": anios,
-        "meses": meses,
-        "redes": redes,
-        "microredes": microredes,
+        "anios": sorted(anios_set),
+        "meses": sorted(meses_set, key=lambda m: _MES_RANK.get(m, 99)),
+        "redes": sorted(redes_set),
+        "microredes": [
+            {"red": r, "microred": m}
+            for r, m in sorted(microredes_set, key=lambda x: (x[0], x[1]))
+        ],
         "codigo": meta["codigo"],
         "nombre": meta["nombre"],
     }
@@ -193,6 +218,7 @@ def get_tabla_redes(
     red: str | None = None,
     microred: str | None = None,
 ) -> dict[str, Any]:
+    """Una sola ejecución del CTE YTD; rollup microred/red/total en Python."""
     where_ytd, params_ytd = _build_filters(
         meta, anio=anio, mes=mes, red=red, microred=microred
     )
@@ -200,9 +226,7 @@ def get_tabla_redes(
         meta, anio=anio, red=red, microred=microred
     )
     cte = _eess_ytd_cte(meta, where_ytd, where_anual)
-    # CTE: primero where_anual (meta), luego where_ytd (avance)
     params = params_anual + params_ytd
-    pct = _pct_expr()
     try:
         with connections["nutricion"].cursor() as cur:
             cur.execute(
@@ -217,44 +241,55 @@ def get_tabla_redes(
                 params,
             )
             establecimientos = _rows(cur)
-
-            cur.execute(
-                f"""
-                ;WITH {cte}
-                SELECT RED, MICRORED,
-                    SUM(avance) AS numerador, SUM(meta) AS denominador, {pct}
-                FROM eess
-                GROUP BY RED, MICRORED
-                ORDER BY RED, MICRORED
-                """,
-                params,
-            )
-            microredes = _rows(cur)
-
-            cur.execute(
-                f"""
-                ;WITH {cte}
-                SELECT RED,
-                    SUM(avance) AS numerador, SUM(meta) AS denominador, {pct}
-                FROM eess
-                GROUP BY RED
-                ORDER BY RED
-                """,
-                params,
-            )
-            redes = _rows(cur)
-
-            cur.execute(
-                f"""
-                ;WITH {cte}
-                SELECT SUM(avance) AS numerador, SUM(meta) AS denominador, {pct}
-                FROM eess
-                """,
-                params,
-            )
-            total = _row(cur) or {"numerador": 0, "denominador": 0, "avance_pct": 0}
     except Exception as exc:  # noqa: BLE001
         raise HttpError(500, f"Error en tabla-redes Nutrición: {exc}") from exc
+
+    mr_acc: dict[tuple[Any, Any], dict[str, float]] = defaultdict(
+        lambda: {"numerador": 0.0, "denominador": 0.0}
+    )
+    red_acc: dict[Any, dict[str, float]] = defaultdict(
+        lambda: {"numerador": 0.0, "denominador": 0.0}
+    )
+    total_n = 0.0
+    total_d = 0.0
+    for e in establecimientos:
+        red_name = e.get("RED")
+        micro_name = e.get("MICRORED")
+        num = _num(e.get("numerador"))
+        den = _num(e.get("denominador"))
+        mr_acc[(red_name, micro_name)]["numerador"] += num
+        mr_acc[(red_name, micro_name)]["denominador"] += den
+        red_acc[red_name]["numerador"] += num
+        red_acc[red_name]["denominador"] += den
+        total_n += num
+        total_d += den
+
+    microredes = [
+        {
+            "RED": red_name,
+            "MICRORED": micro_name,
+            "numerador": acc["numerador"],
+            "denominador": acc["denominador"],
+            "avance_pct": _pct(acc["numerador"], acc["denominador"]),
+        }
+        for (red_name, micro_name), acc in sorted(
+            mr_acc.items(), key=lambda x: (str(x[0][0]), str(x[0][1]))
+        )
+    ]
+    redes = [
+        {
+            "RED": red_name,
+            "numerador": acc["numerador"],
+            "denominador": acc["denominador"],
+            "avance_pct": _pct(acc["numerador"], acc["denominador"]),
+        }
+        for red_name, acc in sorted(red_acc.items(), key=lambda x: str(x[0]))
+    ]
+    total = {
+        "numerador": total_n,
+        "denominador": total_d,
+        "avance_pct": _pct(total_n, total_d),
+    }
 
     return {
         "anio": anio,
