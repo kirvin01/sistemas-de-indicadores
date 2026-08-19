@@ -190,6 +190,7 @@ function TendenciaChartBody({
           fill={chartTheme.progress}
           radius={[5, 5, 0, 0]}
           maxBarSize={dense ? 36 : 52}
+          isAnimationActive={false}
         >
           <LabelList
             dataKey="Avance %"
