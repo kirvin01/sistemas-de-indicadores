@@ -53,8 +53,8 @@ export function CgHubPage() {
         <p className="text-sm font-medium text-teal-800/70">Convenio de Gestión</p>
         <h2 className="text-3xl font-semibold tracking-tight">Indicadores CG 2026</h2>
         <p className="max-w-2xl text-muted-foreground">
-          Organización territorial y Redes Integradas de Salud. Datos Regional y Nacional
-          desde DBCGESTION_26.
+          Organización territorial y Redes Integradas de Salud. Se usa Data Nacional
+          mientras el mes exista en esa carga; el resto se complementa con Data Regional.
         </p>
       </header>
 

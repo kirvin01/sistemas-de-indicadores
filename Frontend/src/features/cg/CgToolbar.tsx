@@ -12,15 +12,7 @@ import cloudFedIcon from '@/assets/cloud-fed.png'
 
 const CLOUD_URL = (import.meta.env.VITE_CG_CLOUD_URL as string | undefined)?.trim()
 
-export function CgToolbar({
-  fuente,
-  fuentes,
-  onFuenteChange,
-}: {
-  fuente?: string
-  fuentes?: string[]
-  onFuenteChange?: (v: string) => void
-}) {
+export function CgToolbar() {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -98,26 +90,6 @@ export function CgToolbar({
           </div>
         </DropdownMenuContent>
       </DropdownMenu>
-
-      {fuentes && fuentes.length > 0 && onFuenteChange ? (
-        <div className="inline-flex h-8 overflow-hidden rounded-full border border-slate-300 bg-white text-xs font-semibold">
-          {fuentes.map((f) => (
-            <button
-              key={f}
-              type="button"
-              onClick={() => onFuenteChange(f)}
-              className={cn(
-                'px-3 transition-colors',
-                fuente === f
-                  ? 'bg-slate-800 text-white'
-                  : 'text-slate-600 hover:bg-slate-100',
-              )}
-            >
-              {f}
-            </button>
-          ))}
-        </div>
-      ) : null}
 
       {CLOUD_URL ? (
         <a

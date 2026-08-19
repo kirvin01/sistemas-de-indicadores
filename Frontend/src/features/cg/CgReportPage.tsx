@@ -83,7 +83,6 @@ export function CgReportPage() {
   const [filtros, setFiltros] = useState<CgFiltros | null>(null)
   const [anio, setAnio] = useState<number | null>(null)
   const [mes, setMes] = useState('')
-  const [fuente, setFuente] = useState('')
   const [provincia, setProvincia] = useState('all')
   const [red, setRed] = useState('all')
   const [microred, setMicrored] = useState('all')
@@ -110,8 +109,7 @@ export function CgReportPage() {
       .then((f) => {
         setFiltros(f)
         setAnio(f.anios[f.anios.length - 1] ?? new Date().getFullYear())
-        setMes(f.meses[0] ?? '')
-        setFuente(f.default_fuente ?? f.fuentes[0] ?? '')
+        setMes(f.meses[f.meses.length - 1] ?? '')
         setProvincia('all')
         setRed('all')
         setMicrored('all')
@@ -128,33 +126,38 @@ export function CgReportPage() {
   }, [slug])
 
   useEffect(() => {
-    if (!slug || !fuente) return
+    if (!slug || anio == null) return
     const controller = new AbortController()
     void cgApi
-      .filtros(slug, { fuente }, { signal: controller.signal })
+      .filtros(slug, { anio, mes: mes || undefined }, { signal: controller.signal })
       .then((f) => {
         setFiltros((prev) =>
           prev
             ? {
                 ...f,
-                fuentes: prev.fuentes.length ? prev.fuentes : f.fuentes,
+                anios: prev.anios.length ? prev.anios : f.anios,
+                meses: prev.meses.length ? prev.meses : f.meses,
               }
             : f,
         )
-        setAnio((y) => (f.anios.includes(y as number) ? y : (f.anios[f.anios.length - 1] ?? y)))
-        setMes((m) => (f.meses.includes(m) ? m : (f.meses[0] ?? m)))
+        setProvincia('all')
+        setRed('all')
+        setMicrored('all')
       })
       .catch(() => {
         /* el loadData mostrará error si no hay datos */
       })
     return () => controller.abort()
-  }, [slug, fuente])
+  }, [slug, anio, mes])
+
+  const loadData = useCallback(
     async (signal?: AbortSignal) => {
-      if (!slug || !anio || !mes) return
+      if (!slug || !anio) return
+      if (filtros && filtros.meses.length > 0 && !mes) return
       setLoadingData(true)
-      const params = { anio, mes, fuente: fuente || undefined }
+      const params = { anio, mes: mes || undefined }
       try {
-        const resumenP = cgApi.resumen(slug, { anio, fuente: params.fuente }, { signal })
+        const resumenP = cgApi.resumen(slug, { anio }, { signal })
         if (modo === 'redes') {
           const [r, s] = await Promise.all([
             cgApi.tablaRedes(slug, params, { signal }),
@@ -179,7 +182,7 @@ export function CgReportPage() {
         setLoadingData(false)
       }
     },
-    [slug, anio, mes, modo, fuente],
+    [slug, anio, mes, modo, filtros],
   )
 
   useEffect(() => {
@@ -346,14 +349,12 @@ export function CgReportPage() {
 
   const kpiTone = cgAvanceTone(total?.avance_pct, meta || 50, kind)
   const tendenciaMeta = kind === 'rate_10k' || kind === 'ratio_raw' ? meta || 0 : meta || 100
+  const fuenteAplicada = (isRedes ? redes?.fuente : tabla?.fuente) ?? filtros.fuente_aplicada
+  const fuenteLabel = fuenteAplicada ? `Data ${fuenteAplicada}` : null
 
   return (
     <div className="space-y-6 md:space-y-8">
-      <CgToolbar
-        fuente={fuente}
-        fuentes={filtros.fuentes}
-        onFuenteChange={setFuente}
-      />
+      <CgToolbar />
 
       <div className="space-y-4">
         <Link
@@ -363,24 +364,33 @@ export function CgReportPage() {
           <ArrowLeft className="size-4" />
           Convenio de Gestión
         </Link>
-        <div className="flex items-start gap-4">
-          <div className="mt-0.5 flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <Handshake className="size-5" />
-          </div>
-          <div className="min-w-0 space-y-1.5">
-            <p className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
-              {filtros.codigo}
-              {fuente ? ` · ${fuente}` : ''}
-            </p>
-            <h2 className="text-2xl font-bold tracking-tight text-slate-800 md:text-3xl">
-              {filtros.nombre}
-            </h2>
-            {filtros.descripcion ? (
-              <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
-                {filtros.descripcion}
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex min-w-0 items-start gap-4">
+            <div className="mt-0.5 flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <Handshake className="size-5" />
+            </div>
+            <div className="min-w-0 space-y-1.5">
+              <p className="text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+                {filtros.codigo}
               </p>
-            ) : null}
+              <h2 className="text-2xl font-bold tracking-tight text-slate-800 md:text-3xl">
+                {filtros.nombre}
+              </h2>
+              {filtros.descripcion ? (
+                <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
+                  {filtros.descripcion}
+                </p>
+              ) : null}
+            </div>
           </div>
+          {fuenteLabel ? (
+            <div className="shrink-0 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+              <p className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+                Fuente
+              </p>
+              <p className="text-sm font-bold text-slate-800">{fuenteLabel}</p>
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -439,6 +449,7 @@ export function CgReportPage() {
               </SelectContent>
             </Select>
           </div>
+          {filtros.meses.length > 0 ? (
           <div className="w-[140px] space-y-1.5">
             <Label>Mes</Label>
             <Select value={mes} onValueChange={(v) => setMes(v ?? '')}>
@@ -454,6 +465,9 @@ export function CgReportPage() {
               </SelectContent>
             </Select>
           </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">Sin desglose mensual (dato anual).</p>
+          )}
           {isRedes ? (
             <>
               <div className="min-w-[160px] flex-1 space-y-1.5 sm:max-w-xs">

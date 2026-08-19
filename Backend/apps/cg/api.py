@@ -29,9 +29,14 @@ def listar_config(request):
 
 
 @router.get("/{slug}/filtros", summary="Filtros del indicador")
-def filtros(request, slug: str, fuente: Optional[str] = Query(None)):
+def filtros(
+    request,
+    slug: str,
+    anio: Optional[int] = Query(None),
+    mes: Optional[str] = Query(None),
+):
     require_permission(request.auth, "cg:read")
-    return standard.get_filtros(_meta(slug), fuente=fuente)
+    return standard.get_filtros(_meta(slug), anio=anio, mes=mes)
 
 
 @router.get("/{slug}/tabla-completa", summary="Datos territoriales")
@@ -39,8 +44,7 @@ def tabla_completa(
     request,
     slug: str,
     anio: int,
-    mes: str,
-    fuente: Optional[str] = Query(None),
+    mes: Optional[str] = Query(None),
     departamento: Optional[str] = Query(None),
     provincia: Optional[str] = Query(None),
     red: Optional[str] = Query(None),
@@ -51,7 +55,6 @@ def tabla_completa(
         _meta(slug),
         anio=anio,
         mes=mes,
-        fuente=fuente,
         departamento=departamento,
         provincia=provincia,
         red=red,
@@ -64,8 +67,7 @@ def tabla_redes(
     request,
     slug: str,
     anio: int,
-    mes: str,
-    fuente: Optional[str] = Query(None),
+    mes: Optional[str] = Query(None),
     departamento: Optional[str] = Query(None),
     provincia: Optional[str] = Query(None),
     red: Optional[str] = Query(None),
@@ -76,7 +78,6 @@ def tabla_redes(
         _meta(slug),
         anio=anio,
         mes=mes,
-        fuente=fuente,
         departamento=departamento,
         provincia=provincia,
         red=red,
@@ -89,7 +90,6 @@ def resumen(
     request,
     slug: str,
     anio: Optional[int] = Query(None),
-    fuente: Optional[str] = Query(None),
     departamento: Optional[str] = Query(None),
     red: Optional[str] = Query(None),
 ):
@@ -97,7 +97,6 @@ def resumen(
     return standard.get_resumen(
         _meta(slug),
         anio=anio,
-        fuente=fuente,
         departamento=departamento,
         red=red,
     )

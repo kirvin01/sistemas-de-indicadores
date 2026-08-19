@@ -21,7 +21,7 @@ export type CgFiltros = {
   redes: string[]
   microredes: { red: string; microred: string }[]
   fuentes: string[]
-  default_fuente: string | null
+  fuente_aplicada: string | null
   meta_pct: number
   umbral: number | null
   kind: string
@@ -45,7 +45,7 @@ export type CgTotal = {
 
 export type CgTablaCompleta = {
   anio: number
-  mes: string
+  mes: string | null
   fuente?: string | null
   kind: string
   total: CgTotal
@@ -70,7 +70,7 @@ export type CgTablaCompleta = {
 
 export type CgTablaRedes = {
   anio: number
-  mes: string
+  mes: string | null
   fuente?: string | null
   kind: string
   total: CgTotal
@@ -95,6 +95,7 @@ export type CgTablaRedes = {
 export type CgResumenRow = {
   año: number
   MES: string
+  fuente?: string | null
   total_denominador: number
   total_numerador: number
   avance_pct: number
@@ -119,21 +120,21 @@ function qs(params: Record<string, string | number | undefined | null>) {
 export const cgApi = {
   list: () => apiFetch<{ result: CgIndicator[] }>('/cg/indicadores'),
   config: () => apiFetch<{ result: CgConfigRow[] }>('/cg/config'),
-  filtros: (slug: string, params?: { fuente?: string }, init?: RequestInit) =>
+  filtros: (slug: string, params?: { anio?: number; mes?: string }, init?: RequestInit) =>
     apiFetch<CgFiltros>(`/cg/${slug}/filtros?${qs(params ?? {})}`, init),
   tablaCompleta: (
     slug: string,
-    params: { anio: number; mes: string; fuente?: string },
+    params: { anio: number; mes?: string },
     init?: RequestInit,
   ) => apiFetch<CgTablaCompleta>(`/cg/${slug}/tabla-completa?${qs(params)}`, init),
   tablaRedes: (
     slug: string,
-    params: { anio: number; mes: string; fuente?: string },
+    params: { anio: number; mes?: string },
     init?: RequestInit,
   ) => apiFetch<CgTablaRedes>(`/cg/${slug}/tabla-redes?${qs(params)}`, init),
   resumen: (
     slug: string,
-    params: { anio?: number; fuente?: string },
+    params: { anio?: number },
     init?: RequestInit,
   ) => apiFetch<{ data: CgResumenRow[] }>(`/cg/${slug}/resumen?${qs(params)}`, init),
 }

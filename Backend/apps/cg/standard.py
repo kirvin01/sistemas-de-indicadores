@@ -76,6 +76,7 @@ def _build_filters(
     red: str | None = None,
     microred: str | None = None,
     fuente: str | None = None,
+    require_null_mes: bool = False,
 ) -> tuple[str, list[Any]]:
     filters: list[str] = []
     params: list[Any] = []
@@ -85,6 +86,8 @@ def _build_filters(
     if mes:
         filters.append("UPPER(mes) = UPPER(%s)")
         params.append(mes)
+    elif require_null_mes:
+        filters.append("mes IS NULL")
     if departamento:
         filters.append("UPPER(Departamento) = UPPER(%s)")
         params.append(departamento)
@@ -102,6 +105,119 @@ def _build_filters(
         params.append(fuente)
     where = ("WHERE " + " AND ".join(filters)) if filters else ""
     return where, params
+
+
+def _norm_mes(mes: str | None) -> str | None:
+    if mes is None:
+        return None
+    t = str(mes).strip().upper()
+    return t or None
+
+
+def _canon_fuente(value: Any) -> str | None:
+    if value is None:
+        return None
+    t = str(value).strip()
+    if not t:
+        return None
+    low = t.lower()
+    if low == "nacional":
+        return "Nacional"
+    if low == "regional":
+        return "Regional"
+    return t
+
+
+def _row_mes(row: dict[str, Any]) -> str | None:
+    return _norm_mes(row.get("mes") if "mes" in row else row.get("MES"))
+
+
+def _coverage_rows(meta: IndicatorMeta) -> list[dict[str, Any]]:
+    t = _table(meta)
+    with connections["cg"].cursor() as cur:
+        cur.execute(f"SELECT DISTINCT anio, mes, Fuente FROM {t}")
+        return _rows(cur)
+
+
+def resolve_fuente(
+    meta: IndicatorMeta,
+    *,
+    anio: int | None,
+    mes: str | None,
+) -> str | None:
+    """Nacional si el mes existe en esa carga; si no, Regional."""
+    if anio is None:
+        return None
+    mes_n = _norm_mes(mes)
+    fuentes: set[str] = set()
+    for r in _coverage_rows(meta):
+        if r.get("anio") is None or int(r["anio"]) != int(anio):
+            continue
+        fu = _canon_fuente(r.get("Fuente"))
+        if not fu:
+            continue
+        rm = _row_mes(r)
+        if mes_n is None:
+            if rm is None:
+                fuentes.add(fu)
+        elif rm == mes_n:
+            fuentes.add(fu)
+    if "Nacional" in fuentes:
+        return "Nacional"
+    if "Regional" in fuentes:
+        return "Regional"
+    return next(iter(fuentes), None)
+
+
+def _prefer_fuente_row(
+    current: dict[str, Any] | None, candidate: dict[str, Any]
+) -> dict[str, Any]:
+    if current is None:
+        return candidate
+    if _canon_fuente(candidate.get("Fuente")) == "Nacional":
+        return candidate
+    return current
+
+
+def _empty_tabla_completa(anio: int, mes: str | None, fuente: str | None, kind: str) -> dict[str, Any]:
+    return {
+        "anio": anio,
+        "mes": _norm_mes(mes),
+        "fuente": fuente,
+        "kind": kind,
+        "total": {
+            "denominador": 0,
+            "numerador": 0,
+            "avance_pct": 0,
+            "cumplimiento_pct": None,
+            "umbral": None,
+            "meta": None,
+            "extras": {},
+        },
+        "provincias": [],
+        "distritos": [],
+    }
+
+
+def _empty_tabla_redes(anio: int, mes: str | None, fuente: str | None, kind: str) -> dict[str, Any]:
+    return {
+        "anio": anio,
+        "mes": _norm_mes(mes),
+        "fuente": fuente,
+        "kind": kind,
+        "total": {
+            "denominador": 0,
+            "numerador": 0,
+            "avance_pct": 0,
+            "cumplimiento_pct": None,
+            "umbral": None,
+            "meta": None,
+            "extras": {},
+        },
+        "redes": [],
+        "microredes": [],
+        "establecimientos": [],
+    }
 
 
 def _meta_eoc(eoc: float) -> float:
@@ -257,18 +373,20 @@ def _extract_extras(meta: IndicatorMeta, row: dict[str, Any]) -> dict[str, float
     return {col: _num(row.get(col)) for col in meta["extras"]}
 
 
-def get_filtros(meta: IndicatorMeta, *, fuente: str | None = None) -> dict[str, Any]:
+def get_filtros(
+    meta: IndicatorMeta,
+    *,
+    anio: int | None = None,
+    mes: str | None = None,
+) -> dict[str, Any]:
     t = _table(meta)
-    where, params = _build_filters(fuente=fuente)
     try:
         with connections["cg"].cursor() as cur:
             cur.execute(
                 f"""
                 SELECT DISTINCT anio, mes, Departamento, Provincia, Red, MicroRed, Fuente
                 FROM {t}
-                {where}
-                """,
-                params,
+                """
             )
             combos = _rows(cur)
     except Exception as exc:  # noqa: BLE001
@@ -282,11 +400,29 @@ def get_filtros(meta: IndicatorMeta, *, fuente: str | None = None) -> dict[str, 
     microredes_set: set[tuple[str, str]] = set()
     fuentes_set: set[str] = set()
 
+    fuente_geo = resolve_fuente(meta, anio=anio, mes=mes) if anio is not None else None
+    mes_n = _norm_mes(mes)
+
     for r in combos:
+        fu = _canon_fuente(r.get("Fuente"))
+        if fu:
+            fuentes_set.add(fu)
         if r.get("anio") is not None:
             anios_set.add(int(r["anio"]))
-        if r.get("mes") is not None:
-            meses_set.add(str(r["mes"]).upper())
+        rm = _row_mes(r)
+        if rm:
+            meses_set.add(rm)
+
+        use_geo = True
+        if fuente_geo and fu and fu != fuente_geo:
+            use_geo = False
+        if mes_n and rm != mes_n:
+            use_geo = False
+        if anio is not None and r.get("anio") is not None and int(r["anio"]) != int(anio):
+            use_geo = False
+        if not use_geo:
+            continue
+
         dep = r.get("Departamento")
         prov = r.get("Provincia")
         if dep:
@@ -299,13 +435,8 @@ def get_filtros(meta: IndicatorMeta, *, fuente: str | None = None) -> dict[str, 
             redes_set.add(str(red))
         if red and micro:
             microredes_set.add((str(red), str(micro)))
-        fu = r.get("Fuente")
-        if fu:
-            fuentes_set.add(str(fu))
 
     fuentes = sorted(fuentes_set)
-    default_fuente = "Regional" if "Regional" in fuentes_set else (fuentes[0] if fuentes else None)
-
     return {
         "anios": sorted(anios_set),
         "meses": sorted(meses_set, key=lambda m: _MES_RANK.get(m, 99)),
@@ -320,7 +451,7 @@ def get_filtros(meta: IndicatorMeta, *, fuente: str | None = None) -> dict[str, 
             for r, m in sorted(microredes_set, key=lambda x: (x[0], x[1]))
         ],
         "fuentes": fuentes,
-        "default_fuente": default_fuente,
+        "fuente_aplicada": fuente_geo,
         "meta_pct": meta["meta"] if meta["meta"] is not None else 0,
         "umbral": meta["umbral"],
         "kind": meta["kind"],
@@ -335,13 +466,15 @@ def get_tabla_completa(
     meta: IndicatorMeta,
     *,
     anio: int,
-    mes: str,
+    mes: str | None = None,
     departamento: str | None = None,
     provincia: str | None = None,
     red: str | None = None,
     microred: str | None = None,
-    fuente: str | None = None,
 ) -> dict[str, Any]:
+    fuente = resolve_fuente(meta, anio=anio, mes=mes)
+    if fuente is None:
+        return _empty_tabla_completa(anio, mes, None, meta["kind"])
     t = _table(meta)
     where, params = _build_filters(
         anio=anio,
@@ -351,6 +484,7 @@ def get_tabla_completa(
         red=red,
         microred=microred,
         fuente=fuente,
+        require_null_mes=not mes,
     )
     aggs = _select_aggs(meta)
     try:
@@ -414,7 +548,7 @@ def get_tabla_completa(
     total = _apply_metrics(meta, tot_n, tot_d, extras=dict(tot_ex))
     return {
         "anio": anio,
-        "mes": mes.upper(),
+        "mes": (mes or "").upper() or None,
         "fuente": fuente,
         "kind": meta["kind"],
         "total": total,
@@ -427,13 +561,15 @@ def get_tabla_redes(
     meta: IndicatorMeta,
     *,
     anio: int,
-    mes: str,
+    mes: str | None = None,
     departamento: str | None = None,
     provincia: str | None = None,
     red: str | None = None,
     microred: str | None = None,
-    fuente: str | None = None,
 ) -> dict[str, Any]:
+    fuente = resolve_fuente(meta, anio=anio, mes=mes)
+    if fuente is None:
+        return _empty_tabla_redes(anio, mes, None, meta["kind"])
     t = _table(meta)
     where, params = _build_filters(
         anio=anio,
@@ -443,6 +579,7 @@ def get_tabla_redes(
         red=red,
         microred=microred,
         fuente=fuente,
+        require_null_mes=not mes,
     )
     aggs = _select_aggs(meta)
     eess = (
@@ -524,7 +661,7 @@ def get_tabla_redes(
     total = _apply_metrics(meta, tot_n, tot_d, extras=dict(tot_ex))
     return {
         "anio": anio,
-        "mes": mes.upper(),
+        "mes": (mes or "").upper() or None,
         "fuente": fuente,
         "kind": meta["kind"],
         "total": total,
@@ -540,20 +677,17 @@ def get_resumen(
     anio: int | None = None,
     departamento: str | None = None,
     red: str | None = None,
-    fuente: str | None = None,
 ) -> dict[str, Any]:
     t = _table(meta)
-    where, params = _build_filters(
-        anio=anio, departamento=departamento, red=red, fuente=fuente
-    )
+    where, params = _build_filters(anio=anio, departamento=departamento, red=red)
     aggs = _select_aggs(meta)
     try:
         with connections["cg"].cursor() as cur:
             cur.execute(
                 f"""
-                SELECT anio AS [año], UPPER(mes) AS MES, {aggs}
+                SELECT anio AS [año], UPPER(mes) AS MES, Fuente, {aggs}
                 FROM {t} {where}
-                GROUP BY anio, UPPER(mes)
+                GROUP BY anio, UPPER(mes), Fuente
                 ORDER BY anio, {MES_ORDER}
                 """,
                 params,
@@ -562,8 +696,19 @@ def get_resumen(
     except Exception as exc:  # noqa: BLE001
         raise HttpError(500, f"Error en resumen CG: {exc}") from exc
 
-    data = []
+    picked: dict[tuple[Any, Any], dict[str, Any]] = {}
     for r in raw:
+        key = (r.get("año"), r.get("MES"))
+        picked[key] = _prefer_fuente_row(picked.get(key), r)
+
+    data = []
+    for r in sorted(
+        picked.values(),
+        key=lambda x: (
+            int(x.get("año") or 0),
+            _MES_RANK.get(_norm_mes(x.get("MES")) or "", 99),
+        ),
+    ):
         extras = _extract_extras(meta, r)
         m = _metrics_row(
             meta, _num(r.get("numerador")), _num(r.get("denominador")), extras
@@ -572,6 +717,7 @@ def get_resumen(
             {
                 "año": r.get("año"),
                 "MES": r.get("MES"),
+                "fuente": _canon_fuente(r.get("Fuente")),
                 "total_denominador": m["denominador"],
                 "total_numerador": m["numerador"],
                 "avance_pct": m["avance_pct"],
