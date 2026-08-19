@@ -15,6 +15,8 @@ import { FedHubPage } from '@/features/fed/FedHubPage'
 import { FedStandardReportPage } from '@/features/fed/FedStandardReportPage'
 import { NutricionHubPage } from '@/features/nutricion/NutricionHubPage'
 import { NutricionReportPage } from '@/features/nutricion/NutricionReportPage'
+import { CgHubPage } from '@/features/cg/CgHubPage'
+import { CgReportPage } from '@/features/cg/CgReportPage'
 import { ProfilePage } from '@/features/profile/ProfilePage'
 import { SessionsPage } from '@/features/sessions/SessionsPage'
 import type { ReactNode } from 'react'
@@ -110,6 +112,22 @@ function AppRoutes() {
           element={
             <RequirePermission permission="nutricion:read">
               <NutricionReportPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="/cg"
+          element={
+            <RequirePermission permission="cg:read">
+              <CgHubPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="/cg/:slug"
+          element={
+            <RequirePermission permission="cg:read">
+              <CgReportPage />
             </RequirePermission>
           }
         />
