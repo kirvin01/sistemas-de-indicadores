@@ -67,14 +67,15 @@ INDICATORS: dict[str, IndicatorMeta] = {
         "Recuperación de anemia en niños de 12 a 18 meses",
         "ID_01_Web",
         "den",
-        "num_recup",
+        "num",
         umbral=40,
         meta=50,
-        extras=["num", "num_sup_He", "num_dosaje", "num_t1", "num_T3"],
+        extras=["num_recup", "num_sup_He", "num_dosaje", "num_t1", "num_T3"],
         bloque="Niñez y nutrición",
         descripcion=(
             "Porcentaje de niñas y niños de 12 a 18 meses, con diagnóstico de anemia "
-            "entre los 6 y 11 meses, que se han recuperado. Umbral 40%, logro esperado 50%."
+            "entre los 6 y 11 meses, que se han recuperado (num / den). "
+            "Umbral 40%, logro esperado 50%."
         ),
     ),
     "cg02": _i(
