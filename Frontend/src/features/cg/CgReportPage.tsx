@@ -61,6 +61,8 @@ export function CgReportPage() {
 
   const { filtros, chartRefs } = r
   const fuenteLabel = r.fuenteAplicada ? `Data ${r.fuenteAplicada}` : null
+  const fuenteEsNacional = (r.fuenteAplicada ?? '').toLowerCase() === 'nacional'
+  const fuenteEsRegional = (r.fuenteAplicada ?? '').toLowerCase() === 'regional'
 
   return (
     <div className="space-y-6 md:space-y-8">
@@ -94,11 +96,34 @@ export function CgReportPage() {
             </div>
           </div>
           {fuenteLabel ? (
-            <div className="shrink-0 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-              <p className="text-[10px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+            <div
+              className={cn(
+                'shrink-0 rounded-xl border px-4 py-3 shadow-sm transition-colors',
+                fuenteEsNacional && 'border-emerald-200 bg-emerald-50',
+                fuenteEsRegional && 'border-amber-200 bg-amber-50',
+                !fuenteEsNacional && !fuenteEsRegional && 'border-slate-200 bg-white',
+              )}
+            >
+              <p
+                className={cn(
+                  'text-[10px] font-semibold tracking-[0.14em] uppercase',
+                  fuenteEsNacional && 'text-emerald-700/70',
+                  fuenteEsRegional && 'text-amber-700/70',
+                  !fuenteEsNacional && !fuenteEsRegional && 'text-muted-foreground',
+                )}
+              >
                 Fuente
               </p>
-              <p className="text-sm font-bold text-slate-800">{fuenteLabel}</p>
+              <p
+                className={cn(
+                  'text-sm font-bold',
+                  fuenteEsNacional && 'text-emerald-800',
+                  fuenteEsRegional && 'text-amber-800',
+                  !fuenteEsNacional && !fuenteEsRegional && 'text-slate-800',
+                )}
+              >
+                {fuenteLabel}
+              </p>
             </div>
           ) : null}
         </div>
