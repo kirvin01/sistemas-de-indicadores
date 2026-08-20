@@ -167,7 +167,7 @@ export function resolveChartRefs(
   filtros: CgFiltros,
   metaFallback: number,
 ): ChartRefs {
-  const refMeta = slug === 'cg18' ? 30 : (total?.meta ?? metaFallback || null)
+  const refMeta = slug === 'cg18' ? 30 : (total?.meta ?? metaFallback ?? null)
   const refUmbral = slug === 'cg18' ? 12 : (total?.umbral ?? filtros.umbral ?? null)
   const chartUnit = kind === 'rate_10k' || kind === 'ratio_raw' ? '' : '%'
   const tendenciaMeta =
