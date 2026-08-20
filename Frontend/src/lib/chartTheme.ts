@@ -4,6 +4,8 @@ export const chartTheme = {
   comparative: '#0EA5E9',
   /** Serie principal / avance (numerador o %) */
   progress: '#0F766E',
+  /** Línea de avance % en gráficos combinados */
+  avanceLine: '#F97316',
   /** Logro esperado / meta */
   meta: '#059669',
   /** Valor umbral */

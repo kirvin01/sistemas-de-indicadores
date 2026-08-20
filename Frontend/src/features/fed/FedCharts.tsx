@@ -4,6 +4,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  ComposedChart,
   LabelList,
   Legend,
   Line,
@@ -141,12 +142,25 @@ function AvanceChartBody({
   height: number
   dense?: boolean
 }) {
+  const countDomain = useMemo(() => {
+    const max = Math.max(
+      ...data.map((d) => Number(d.Denominador || 0) + Number(d.Numerador || 0)),
+      0,
+    )
+    return [0, Math.ceil(max * 1.12) || 10] as [number, number]
+  }, [data])
+
+  const pctDomain = useMemo(
+    () => buildYDomain(data, { percentScale: true }),
+    [data],
+  )
+
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <BarChart
+      <ComposedChart
         data={data}
-        margin={{ top: 18, right: 12, left: dense ? -8 : 0, bottom: dense ? 0 : 8 }}
-        barGap={4}
+        margin={{ top: 22, right: 40, left: dense ? -8 : 0, bottom: dense ? 0 : 8 }}
+        barCategoryGap={dense ? '18%' : '22%'}
       >
         <CartesianGrid strokeDasharray="4 4" stroke={chartTheme.grid} vertical={false} />
         <XAxis
@@ -160,19 +174,30 @@ function AvanceChartBody({
           tickLine={false}
         />
         <YAxis
+          yAxisId="count"
+          domain={countDomain}
           tick={{ fontSize: dense ? 11 : 12, fill: chartTheme.axis }}
           allowDecimals={false}
           axisLine={false}
           tickLine={false}
           width={dense ? 40 : 48}
         />
+        <YAxis
+          yAxisId="pct"
+          orientation="right"
+          domain={pctDomain}
+          unit="%"
+          tick={{ fontSize: dense ? 10 : 11, fill: chartTheme.axis }}
+          axisLine={false}
+          tickLine={false}
+          width={40}
+        />
         <Tooltip
           contentStyle={tooltipStyle}
           cursor={{ fill: 'rgba(15, 23, 42, 0.04)' }}
-          formatter={(value, name) => [Number(value).toLocaleString('es-PE'), String(name)]}
-          labelFormatter={(label, payload) => {
-            const pct = payload?.[0]?.payload?.avance_pct
-            return pct != null ? `${label} · ${Number(pct).toFixed(2)}%` : String(label)
+          formatter={(value, name) => {
+            if (name === 'Avance %') return [`${Number(value).toFixed(2)}%`, 'Avance %']
+            return [Number(value).toLocaleString('es-PE'), String(name)]
           }}
         />
         <Legend
@@ -180,28 +205,45 @@ function AvanceChartBody({
           iconType="circle"
           iconSize={8}
         />
+        {/* Apilado: numerador (verde) abajo, denominador (celeste) arriba */}
         <Bar
-          dataKey="Denominador"
-          fill={chartTheme.comparative}
-          radius={[5, 5, 0, 0]}
-          maxBarSize={dense ? 32 : 48}
+          yAxisId="count"
+          dataKey="Numerador"
+          stackId="stack"
+          fill={chartTheme.progress}
+          radius={[0, 0, 0, 0]}
+          maxBarSize={dense ? 36 : 52}
           {...barAnim}
         />
         <Bar
-          dataKey="Numerador"
-          fill={chartTheme.progress}
+          yAxisId="count"
+          dataKey="Denominador"
+          stackId="stack"
+          fill={chartTheme.comparative}
           radius={[5, 5, 0, 0]}
-          maxBarSize={dense ? 32 : 48}
+          maxBarSize={dense ? 36 : 52}
           {...barAnim}
         >
           <LabelList
-            dataKey="Numerador"
+            dataKey="Denominador"
             position="top"
             style={{ fontSize: dense ? 10 : 11, fill: chartTheme.title, fontWeight: 700 }}
             formatter={(value) => Number(value).toLocaleString('es-PE')}
           />
         </Bar>
-      </BarChart>
+        <Line
+          yAxisId="pct"
+          type="monotone"
+          dataKey="avance_pct"
+          name="Avance %"
+          stroke={chartTheme.avanceLine}
+          strokeWidth={2.5}
+          dot={{ r: dense ? 3 : 4, fill: chartTheme.avanceLine, strokeWidth: 0 }}
+          activeDot={{ r: 5, fill: chartTheme.avanceLine }}
+          animationDuration={700}
+          animationEasing="ease-out"
+        />
+      </ComposedChart>
     </ResponsiveContainer>
   )
 }
@@ -324,7 +366,9 @@ export function FedAvanceBarChart({ titulo, data }: { titulo: string; data: Avan
         <div className="mb-1 flex items-start justify-between gap-2">
           <div className="min-w-0">
             <h3 className="text-sm font-semibold tracking-tight text-slate-800">{titulo}</h3>
-            <p className="mt-0.5 text-xs text-muted-foreground">Denominador vs numerador del periodo</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Barras apiladas · línea de avance %
+            </p>
           </div>
           <ExpandButton onClick={() => setOpen(true)} label="Expandir gráfico" />
         </div>
@@ -340,7 +384,9 @@ export function FedAvanceBarChart({ titulo, data }: { titulo: string; data: Avan
         >
           <DialogHeader className="pr-8">
             <DialogTitle className="text-lg font-semibold text-slate-800">{titulo}</DialogTitle>
-            <DialogDescription>Vista ampliada · Denominador vs numerador</DialogDescription>
+            <DialogDescription>
+              Vista ampliada · numerador (verde) + denominador (celeste) y avance % (naranja)
+            </DialogDescription>
           </DialogHeader>
           <div className="min-h-[420px] w-full">
             <AvanceChartBody data={data} height={440} />
