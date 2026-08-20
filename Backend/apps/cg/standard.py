@@ -76,6 +76,7 @@ def _build_filters(
     red: str | None = None,
     microred: str | None = None,
     fuente: str | None = None,
+    seguro: str | None = None,
     require_null_mes: bool = False,
 ) -> tuple[str, list[Any]]:
     filters: list[str] = []
@@ -103,8 +104,42 @@ def _build_filters(
     if fuente:
         filters.append("UPPER(Fuente) = UPPER(%s)")
         params.append(fuente)
+    if seguro:
+        filters.append("UPPER(seguro) = UPPER(%s)")
+        params.append(seguro)
     where = ("WHERE " + " AND ".join(filters)) if filters else ""
     return where, params
+
+
+_SEGURO_COL_CACHE: dict[str, bool] = {}
+
+
+def _table_has_seguro(meta: IndicatorMeta) -> bool:
+    tabla = meta["tabla"]
+    if tabla in _SEGURO_COL_CACHE:
+        return _SEGURO_COL_CACHE[tabla]
+    try:
+        with connections["cg"].cursor() as cur:
+            cur.execute(
+                """
+                SELECT 1
+                FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_NAME = %s AND LOWER(COLUMN_NAME) = 'seguro'
+                """,
+                [tabla],
+            )
+            ok = cur.fetchone() is not None
+    except Exception:  # noqa: BLE001
+        ok = False
+    _SEGURO_COL_CACHE[tabla] = ok
+    return ok
+
+
+def _pick_default_seguro(seguros: list[str]) -> str | None:
+    for s in seguros:
+        if s.upper() == "MINSA":
+            return s
+    return seguros[0] if seguros else None
 
 
 def _norm_mes(mes: str | None) -> str | None:
@@ -436,11 +471,15 @@ def get_filtros(
     mes: str | None = None,
 ) -> dict[str, Any]:
     t = _table(meta)
+    has_seguro = _table_has_seguro(meta)
+    select_cols = "anio, mes, Departamento, Provincia, Red, MicroRed, Fuente"
+    if has_seguro:
+        select_cols += ", seguro"
     try:
         with connections["cg"].cursor() as cur:
             cur.execute(
                 f"""
-                SELECT DISTINCT anio, mes, Departamento, Provincia, Red, MicroRed, Fuente
+                SELECT DISTINCT {select_cols}
                 FROM {t}
                 """
             )
@@ -455,6 +494,7 @@ def get_filtros(
     redes_set: set[str] = set()
     microredes_set: set[tuple[str, str]] = set()
     fuentes_set: set[str] = set()
+    seguros_set: set[str] = set()
 
     fuente_geo = resolve_fuente(meta, anio=anio, mes=mes) if anio is not None else None
     mes_n = _norm_mes(mes)
@@ -468,6 +508,8 @@ def get_filtros(
         rm = _row_mes(r)
         if rm:
             meses_set.add(rm)
+        if has_seguro and r.get("seguro") is not None and str(r["seguro"]).strip():
+            seguros_set.add(str(r["seguro"]).strip())
 
         use_geo = True
         if fuente_geo and fu and fu != fuente_geo:
@@ -492,6 +534,7 @@ def get_filtros(
         if red and micro:
             microredes_set.add((str(red), str(micro)))
 
+    seguros = sorted(seguros_set, key=lambda s: (0 if s.upper() == "MINSA" else 1, s))
     fuentes = sorted(fuentes_set)
     return {
         "anios": sorted(anios_set),
@@ -508,6 +551,9 @@ def get_filtros(
         ],
         "fuentes": fuentes,
         "fuente_aplicada": fuente_geo,
+        "has_seguro": has_seguro,
+        "seguros": seguros,
+        "default_seguro": _pick_default_seguro(seguros),
         "meta_pct": meta["meta"] if meta["meta"] is not None else 0,
         "umbral": meta["umbral"],
         "kind": meta["kind"],
@@ -527,10 +573,12 @@ def get_tabla_completa(
     provincia: str | None = None,
     red: str | None = None,
     microred: str | None = None,
+    seguro: str | None = None,
 ) -> dict[str, Any]:
     fuente = resolve_fuente(meta, anio=anio, mes=mes)
     if fuente is None:
         return _empty_tabla_completa(anio, mes, None, meta["kind"])
+    seguro_f = seguro if _table_has_seguro(meta) else None
     t = _table(meta)
     where, params = _build_filters(
         anio=anio,
@@ -540,6 +588,7 @@ def get_tabla_completa(
         red=red,
         microred=microred,
         fuente=fuente,
+        seguro=seguro_f,
         require_null_mes=not mes,
     )
     aggs = _select_aggs(meta)
@@ -634,10 +683,12 @@ def get_tabla_redes(
     provincia: str | None = None,
     red: str | None = None,
     microred: str | None = None,
+    seguro: str | None = None,
 ) -> dict[str, Any]:
     fuente = resolve_fuente(meta, anio=anio, mes=mes)
     if fuente is None:
         return _empty_tabla_redes(anio, mes, None, meta["kind"])
+    seguro_f = seguro if _table_has_seguro(meta) else None
     t = _table(meta)
     where, params = _build_filters(
         anio=anio,
@@ -647,6 +698,7 @@ def get_tabla_redes(
         red=red,
         microred=microred,
         fuente=fuente,
+        seguro=seguro_f,
         require_null_mes=not mes,
     )
     aggs = _select_aggs(meta)
@@ -754,9 +806,13 @@ def get_resumen(
     anio: int | None = None,
     departamento: str | None = None,
     red: str | None = None,
+    seguro: str | None = None,
 ) -> dict[str, Any]:
     t = _table(meta)
-    where, params = _build_filters(anio=anio, departamento=departamento, red=red)
+    seguro_f = seguro if _table_has_seguro(meta) else None
+    where, params = _build_filters(
+        anio=anio, departamento=departamento, red=red, seguro=seguro_f
+    )
     aggs = _select_aggs(meta)
     try:
         with connections["cg"].cursor() as cur:

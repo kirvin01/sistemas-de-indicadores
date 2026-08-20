@@ -16,6 +16,7 @@ export function useCgReport(slug: string) {
   const [filtros, setFiltros] = useState<CgFiltros | null>(null)
   const [anio, setAnio] = useState<number | null>(null)
   const [mes, setMes] = useState('')
+  const [seguro, setSeguro] = useState('')
   const [provincia, setProvincia] = useState('all')
   const [red, setRed] = useState('all')
   const [microred, setMicrored] = useState('all')
@@ -43,6 +44,14 @@ export function useCgReport(slug: string) {
         setFiltros(f)
         setAnio(f.anios[f.anios.length - 1] ?? new Date().getFullYear())
         setMes(pickDefaultMes(f.meses))
+        setSeguro(
+          f.has_seguro
+            ? (f.default_seguro ??
+                f.seguros?.find((s) => s.toUpperCase() === 'MINSA') ??
+                f.seguros?.[0] ??
+                '')
+            : '',
+        )
         setProvincia('all')
         setRed('all')
         setMicrored('all')
@@ -70,9 +79,18 @@ export function useCgReport(slug: string) {
                 ...f,
                 anios: prev.anios.length ? prev.anios : f.anios,
                 meses: prev.meses.length ? prev.meses : f.meses,
+                seguros: f.seguros?.length ? f.seguros : prev.seguros,
+                has_seguro: f.has_seguro ?? prev.has_seguro,
+                default_seguro: f.default_seguro ?? prev.default_seguro,
               }
             : f,
         )
+        setSeguro((prev) => {
+          if (!f.has_seguro) return ''
+          const list = f.seguros ?? []
+          if (prev && list.includes(prev)) return prev
+          return f.default_seguro ?? list.find((s) => s.toUpperCase() === 'MINSA') ?? list[0] ?? ''
+        })
         setProvincia('all')
         setRed('all')
         setMicrored('all')
@@ -85,10 +103,19 @@ export function useCgReport(slug: string) {
     async (signal?: AbortSignal) => {
       if (!slug || !anio) return
       if (filtros && filtros.meses.length > 0 && !mes) return
+      if (filtros?.has_seguro && filtros.seguros && filtros.seguros.length > 0 && !seguro) return
       setLoadingData(true)
-      const params = { anio, mes: mes || undefined }
+      const params = {
+        anio,
+        mes: mes || undefined,
+        seguro: filtros?.has_seguro && seguro ? seguro : undefined,
+      }
       try {
-        const resumenP = cgApi.resumen(slug, { anio }, { signal })
+        const resumenP = cgApi.resumen(
+          slug,
+          { anio, seguro: params.seguro },
+          { signal },
+        )
         if (modo === 'redes') {
           const [r, s] = await Promise.all([
             cgApi.tablaRedes(slug, params, { signal }),
@@ -113,7 +140,7 @@ export function useCgReport(slug: string) {
         setLoadingData(false)
       }
     },
-    [slug, anio, mes, modo, filtros],
+    [slug, anio, mes, modo, filtros, seguro],
   )
 
   useEffect(() => {
@@ -175,6 +202,8 @@ export function useCgReport(slug: string) {
     setAnio,
     mes,
     setMes,
+    seguro,
+    setSeguro,
     provincia,
     setProvincia,
     red,

@@ -203,6 +203,23 @@ export function CgReportPage() {
           ) : (
             <p className="text-xs text-muted-foreground">Sin desglose mensual (dato anual).</p>
           )}
+          {filtros.has_seguro && (filtros.seguros?.length ?? 0) > 0 ? (
+            <div className="w-[180px] space-y-1.5">
+              <Label>Seguro</Label>
+              <Select value={r.seguro} onValueChange={(v) => r.setSeguro(v ?? '')}>
+                <SelectTrigger className="h-9 w-full rounded-xl">
+                  <SelectValue placeholder="Seguro" />
+                </SelectTrigger>
+                <SelectContent>
+                  {filtros.seguros!.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
           {r.isRedes ? (
             <>
               <div className="min-w-[160px] flex-1 space-y-1.5 sm:max-w-xs">

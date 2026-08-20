@@ -49,6 +49,7 @@ def tabla_completa(
     provincia: Optional[str] = Query(None),
     red: Optional[str] = Query(None),
     microred: Optional[str] = Query(None),
+    seguro: Optional[str] = Query(None),
 ):
     require_permission(request.auth, "cg:read")
     return standard.get_tabla_completa(
@@ -59,6 +60,7 @@ def tabla_completa(
         provincia=provincia,
         red=red,
         microred=microred,
+        seguro=seguro,
     )
 
 
@@ -72,6 +74,7 @@ def tabla_redes(
     provincia: Optional[str] = Query(None),
     red: Optional[str] = Query(None),
     microred: Optional[str] = Query(None),
+    seguro: Optional[str] = Query(None),
 ):
     require_permission(request.auth, "cg:read")
     return standard.get_tabla_redes(
@@ -82,6 +85,7 @@ def tabla_redes(
         provincia=provincia,
         red=red,
         microred=microred,
+        seguro=seguro,
     )
 
 
@@ -92,6 +96,7 @@ def resumen(
     anio: Optional[int] = Query(None),
     departamento: Optional[str] = Query(None),
     red: Optional[str] = Query(None),
+    seguro: Optional[str] = Query(None),
 ):
     require_permission(request.auth, "cg:read")
     return standard.get_resumen(
@@ -99,4 +104,5 @@ def resumen(
         anio=anio,
         departamento=departamento,
         red=red,
+        seguro=seguro,
     )

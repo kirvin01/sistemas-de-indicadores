@@ -23,6 +23,9 @@ export type CgFiltros = {
   microredes: { red: string; microred: string }[]
   fuentes: string[]
   fuente_aplicada: string | null
+  has_seguro?: boolean
+  seguros?: string[]
+  default_seguro?: string | null
   meta_pct: number
   umbral: number | null
   kind: string
@@ -125,17 +128,17 @@ export const cgApi = {
     apiFetch<CgFiltros>(`/cg/${slug}/filtros?${qs(params ?? {})}`, init),
   tablaCompleta: (
     slug: string,
-    params: { anio: number; mes?: string },
+    params: { anio: number; mes?: string; seguro?: string },
     init?: RequestInit,
   ) => apiFetch<CgTablaCompleta>(`/cg/${slug}/tabla-completa?${qs(params)}`, init),
   tablaRedes: (
     slug: string,
-    params: { anio: number; mes?: string },
+    params: { anio: number; mes?: string; seguro?: string },
     init?: RequestInit,
   ) => apiFetch<CgTablaRedes>(`/cg/${slug}/tabla-redes?${qs(params)}`, init),
   resumen: (
     slug: string,
-    params: { anio?: number },
+    params: { anio?: number; seguro?: string },
     init?: RequestInit,
   ) => apiFetch<{ data: CgResumenRow[] }>(`/cg/${slug}/resumen?${qs(params)}`, init),
 }
