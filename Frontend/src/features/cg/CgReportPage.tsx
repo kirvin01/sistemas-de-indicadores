@@ -1,6 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { toast } from 'sonner'
 import {
   Activity,
   ArrowLeft,
@@ -20,318 +18,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { ApiError } from '@/lib/api'
-import {
-  cgApi,
-  cgAvanceTone,
-  type CgFiltros,
-  type CgResumenRow,
-  type CgTablaCompleta,
-  type CgTablaRedes,
-  type CgTotal,
-} from '@/lib/cgApi'
-import { cardSurface } from '@/lib/chartTheme'
-import { cn } from '@/lib/utils'
-import {
-  FedAvanceBarChart,
-  FedTendenciaChart,
-  type AvanceBarRow,
-} from '@/features/fed/FedCharts'
-import { FedRedesTable, FedTerritorialTable } from '@/features/fed/FedDataTables'
+import { fmtLogro, fmtMetaLabel, fmtPct } from '@/features/cg/cgFormatters'
 import { CgToolbar } from '@/features/cg/CgToolbar'
+import { useCgReport } from '@/features/cg/useCgReport'
+import { FedAvanceBarChart, FedTendenciaChart } from '@/features/fed/FedCharts'
+import { FedRedesTable, FedTerritorialTable } from '@/features/fed/FedDataTables'
+import { cardSurface } from '@/lib/chartTheme'
 import type { FedTablaCompleta, FedTablaRedes } from '@/lib/fedApi'
-
-type Modo = 'territorial' | 'redes'
-type VistaTabla = 'jerarquica' | 'plana'
-
-function fmtPct(v: number | null | undefined) {
-  if (v == null) return '—'
-  return `${Number(v).toFixed(2)}%`
-}
-
-function fmtMetaLabel(
-  meta: number | null | undefined,
-  kind?: string,
-  slug?: string,
-) {
-  if (slug === 'cg18') return '12–30 egresos/cama'
-  if (meta == null) return null
-  if (kind === 'ratio_raw') return String(meta)
-  if (kind === 'rate_10k') return String(meta)
-  return `${Number(meta).toFixed(2)}${kind === 'ratio_pct' || kind === 'inverse_pct' || kind === 'dual_ratio' ? '%' : ''}`
-}
-
-function fmtLogro(v: number | null | undefined, kind?: string) {
-  if (v == null) return '—'
-  if (kind === 'ratio_raw') return Number(v).toFixed(2)
-  if (kind === 'rate_10k') return Number(v).toFixed(2)
-  return fmtPct(v)
-}
-
-function shortLabel(value: string, max = 11) {
-  const t = value.trim()
-  if (t.length <= max) return t
-  return `${t.slice(0, max)}…`
-}
-
-function rollTotal(
-  rows: Array<{ numerador: number; denominador: number; avance_pct: number }>,
-): CgTotal | undefined {
-  if (!rows.length) return undefined
-  const numerador = rows.reduce((s, r) => s + Number(r.numerador || 0), 0)
-  const denominador = rows.reduce((s, r) => s + Number(r.denominador || 0), 0)
-  return {
-    numerador,
-    denominador,
-    avance_pct: denominador > 0 ? Math.round((numerador / denominador) * 10000) / 100 : 0,
-    cumplimiento_pct: null,
-    umbral: null,
-    meta: null,
-  }
-}
+import { cn } from '@/lib/utils'
 
 export function CgReportPage() {
   const { slug = '' } = useParams()
-  const [filtros, setFiltros] = useState<CgFiltros | null>(null)
-  const [anio, setAnio] = useState<number | null>(null)
-  const [mes, setMes] = useState('')
-  const [provincia, setProvincia] = useState('all')
-  const [red, setRed] = useState('all')
-  const [microred, setMicrored] = useState('all')
-  const [busqueda, setBusqueda] = useState('')
-  const [modo, setModo] = useState<Modo>('redes')
-  const [vista, setVista] = useState<VistaTabla>('jerarquica')
-  const [tabla, setTabla] = useState<CgTablaCompleta | null>(null)
-  const [redes, setRedes] = useState<CgTablaRedes | null>(null)
-  const [resumen, setResumen] = useState<CgResumenRow[]>([])
-  const [loadingFiltros, setLoadingFiltros] = useState(true)
-  const [loadingData, setLoadingData] = useState(false)
+  const r = useCgReport(slug)
 
-  const isRedes = modo === 'redes'
-
-  useEffect(() => {
-    if (!slug) return
-    const controller = new AbortController()
-    setLoadingFiltros(true)
-    setFiltros(null)
-    setTabla(null)
-    setRedes(null)
-    void cgApi
-      .filtros(slug, undefined, { signal: controller.signal })
-      .then((f) => {
-        setFiltros(f)
-        setAnio(f.anios[f.anios.length - 1] ?? new Date().getFullYear())
-        setMes(f.meses[f.meses.length - 1] ?? '')
-        setProvincia('all')
-        setRed('all')
-        setMicrored('all')
-        setBusqueda('')
-      })
-      .catch((err: unknown) => {
-        if (controller.signal.aborted) return
-        toast.error(err instanceof ApiError ? err.message : 'Error al cargar filtros')
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoadingFiltros(false)
-      })
-    return () => controller.abort()
-  }, [slug])
-
-  useEffect(() => {
-    if (!slug || anio == null) return
-    const controller = new AbortController()
-    void cgApi
-      .filtros(slug, { anio, mes: mes || undefined }, { signal: controller.signal })
-      .then((f) => {
-        setFiltros((prev) =>
-          prev
-            ? {
-                ...f,
-                anios: prev.anios.length ? prev.anios : f.anios,
-                meses: prev.meses.length ? prev.meses : f.meses,
-              }
-            : f,
-        )
-        setProvincia('all')
-        setRed('all')
-        setMicrored('all')
-      })
-      .catch(() => {
-        /* el loadData mostrará error si no hay datos */
-      })
-    return () => controller.abort()
-  }, [slug, anio, mes])
-
-  const loadData = useCallback(
-    async (signal?: AbortSignal) => {
-      if (!slug || !anio) return
-      if (filtros && filtros.meses.length > 0 && !mes) return
-      setLoadingData(true)
-      const params = { anio, mes: mes || undefined }
-      try {
-        const resumenP = cgApi.resumen(slug, { anio }, { signal })
-        if (modo === 'redes') {
-          const [r, s] = await Promise.all([
-            cgApi.tablaRedes(slug, params, { signal }),
-            resumenP,
-          ])
-          setRedes(r)
-          setTabla(null)
-          setResumen(s.data)
-        } else {
-          const [t, s] = await Promise.all([
-            cgApi.tablaCompleta(slug, params, { signal }),
-            resumenP,
-          ])
-          setTabla(t)
-          setRedes(null)
-          setResumen(s.data)
-        }
-      } catch (err: unknown) {
-        if (err instanceof DOMException && err.name === 'AbortError') return
-        toast.error(err instanceof ApiError ? err.message : 'Error al cargar el reporte')
-      } finally {
-        setLoadingData(false)
-      }
-    },
-    [slug, anio, mes, modo, filtros],
-  )
-
-  useEffect(() => {
-    const controller = new AbortController()
-    void loadData(controller.signal)
-    return () => controller.abort()
-  }, [loadData])
-
-  const provinciasUnicas = useMemo(() => {
-    if (!filtros) return []
-    return [...new Set(filtros.provincias.map((p) => p.provincia))].sort((a, b) =>
-      a.localeCompare(b, 'es'),
-    )
-  }, [filtros])
-
-  const microredesFiltradas = useMemo(() => {
-    if (!filtros) return []
-    if (red === 'all') return filtros.microredes
-    return filtros.microredes.filter((m) => m.red === red)
-  }, [filtros, red])
-
-  const kind = filtros?.kind
-  const meta = (isRedes ? redes?.total.meta : tabla?.total.meta) ?? filtros?.meta_pct ?? 0
-
-  const total = useMemo(() => {
-    if (isRedes && redes) {
-      if (red !== 'all' && microred !== 'all') {
-        return (
-          rollTotal(
-            redes.establecimientos.filter((e) => e.RED === red && e.MICRORED === microred),
-          ) ?? redes.total
-        )
-      }
-      if (red !== 'all') {
-        const row = redes.redes.find((r) => r.RED === red)
-        return row
-          ? {
-              ...redes.total,
-              numerador: Number(row.numerador),
-              denominador: Number(row.denominador),
-              avance_pct: Number(row.avance_pct),
-            }
-          : redes.total
-      }
-      return redes.total
-    }
-    if (!isRedes && tabla) {
-      if (provincia !== 'all') {
-        const row = tabla.provincias.find((p) => p.PROVINCIA === provincia)
-        return row
-          ? {
-              ...tabla.total,
-              numerador: Number(row.numerador),
-              denominador: Number(row.denominador),
-              avance_pct: Number(row.avance_pct),
-              cumplimiento_pct: row.cumplimiento_pct,
-            }
-          : tabla.total
-      }
-      return tabla.total
-    }
-    return undefined
-  }, [isRedes, redes, tabla, red, microred, provincia])
-
-  const mesLabel = isRedes ? redes?.mes : tabla?.mes
-  const anioLabel = isRedes ? redes?.anio : tabla?.anio
-
-  const chartData: AvanceBarRow[] = useMemo(() => {
-    if (isRedes && redes) {
-      if (red !== 'all' && microred !== 'all') {
-        return redes.establecimientos
-          .filter((e) => e.RED === red && e.MICRORED === microred)
-          .map((e) => ({
-            name: shortLabel(e.ESTABLECIMIENTO, 14),
-            Denominador: Number(e.denominador),
-            Numerador: Number(e.numerador),
-            avance_pct: Number(e.avance_pct),
-          }))
-      }
-      if (red !== 'all') {
-        return redes.microredes
-          .filter((m) => m.RED === red)
-          .map((m) => ({
-            name: shortLabel(m.MICRORED),
-            Denominador: Number(m.denominador),
-            Numerador: Number(m.numerador),
-            avance_pct: Number(m.avance_pct),
-          }))
-      }
-      return redes.redes.map((r) => ({
-        name: shortLabel(r.RED),
-        Denominador: Number(r.denominador),
-        Numerador: Number(r.numerador),
-        avance_pct: Number(r.avance_pct),
-      }))
-    }
-    if (!isRedes && tabla) {
-      if (provincia !== 'all') {
-        return tabla.distritos
-          .filter((d) => d.PROVINCIA === provincia)
-          .map((d) => ({
-            name: shortLabel(d.DISTRITO),
-            Denominador: Number(d.denominador),
-            Numerador: Number(d.numerador),
-            avance_pct: Number(d.avance_pct),
-          }))
-      }
-      return tabla.provincias.map((p) => ({
-        name: shortLabel(p.PROVINCIA),
-        Denominador: Number(p.denominador),
-        Numerador: Number(p.numerador),
-        avance_pct: Number(p.avance_pct),
-      }))
-    }
-    return []
-  }, [isRedes, redes, tabla, red, microred, provincia])
-
-  const chartTitle = useMemo(() => {
-    if (isRedes) {
-      if (red !== 'all' && microred !== 'all') return 'Logro por Establecimiento'
-      if (red !== 'all') return 'Logro por Microred'
-      return 'Logro por Red'
-    }
-    if (provincia !== 'all') return 'Logro por Distrito'
-    return 'Logro por Provincia'
-  }, [isRedes, red, microred, provincia])
-
-  const tendenciaData = useMemo(
-    () =>
-      resumen.map((r) => ({
-        name: String(r.MES).slice(0, 3).toUpperCase(),
-        'Avance %': Number(r.avance_pct),
-      })),
-    [resumen],
-  )
-
-  if (loadingFiltros) {
+  if (r.loadingFiltros) {
     return (
       <div className="space-y-4">
         <CgToolbar />
@@ -343,7 +43,7 @@ export function CgReportPage() {
     )
   }
 
-  if (!filtros) {
+  if (!r.filtros) {
     return (
       <div className="space-y-4">
         <CgToolbar />
@@ -359,22 +59,8 @@ export function CgReportPage() {
     )
   }
 
-  const kpiTone = cgAvanceTone(total?.avance_pct, meta || 50, kind)
-  const refMeta =
-    slug === 'cg18' ? 30 : (total?.meta ?? (meta || null))
-  const refUmbral =
-    slug === 'cg18' ? 12 : (total?.umbral ?? filtros.umbral ?? null)
-  const chartUnit =
-    kind === 'rate_10k' || kind === 'ratio_raw' ? '' : '%'
-  const chartPercentScale = chartUnit === '%'
-  const chartPctMode =
-    kind === 'ratio_pct' || kind === 'inverse_pct' || kind === 'dual_ratio'
-  const tendenciaMeta =
-    kind === 'rate_10k' || kind === 'ratio_raw'
-      ? Number(refMeta) || 0
-      : Number(refMeta) || 100
-  const fuenteAplicada = (isRedes ? redes?.fuente : tabla?.fuente) ?? filtros.fuente_aplicada
-  const fuenteLabel = fuenteAplicada ? `Data ${fuenteAplicada}` : null
+  const { filtros, chartRefs } = r
+  const fuenteLabel = r.fuenteAplicada ? `Data ${r.fuenteAplicada}` : null
 
   return (
     <div className="space-y-6 md:space-y-8">
@@ -422,10 +108,10 @@ export function CgReportPage() {
         <div className={cn('inline-flex p-1', cardSurface)}>
           <button
             type="button"
-            onClick={() => setModo('territorial')}
+            onClick={() => r.setModo('territorial')}
             className={cn(
               'inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors',
-              modo === 'territorial'
+              r.modo === 'territorial'
                 ? 'bg-sky-600 text-white shadow-sm'
                 : 'text-muted-foreground hover:bg-muted hover:text-foreground',
             )}
@@ -435,10 +121,10 @@ export function CgReportPage() {
           </button>
           <button
             type="button"
-            onClick={() => setModo('redes')}
+            onClick={() => r.setModo('redes')}
             className={cn(
               'inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors',
-              modo === 'redes'
+              r.modo === 'redes'
                 ? 'bg-primary text-primary-foreground shadow-sm'
                 : 'text-muted-foreground hover:bg-muted hover:text-foreground',
             )}
@@ -458,8 +144,8 @@ export function CgReportPage() {
           <div className="w-[110px] space-y-1.5">
             <Label>Año</Label>
             <Select
-              value={anio != null ? String(anio) : undefined}
-              onValueChange={(v) => setAnio(Number(v))}
+              value={r.anio != null ? String(r.anio) : undefined}
+              onValueChange={(v) => r.setAnio(Number(v))}
             >
               <SelectTrigger className="h-9 w-full rounded-xl">
                 <SelectValue placeholder="Año" />
@@ -474,33 +160,33 @@ export function CgReportPage() {
             </Select>
           </div>
           {filtros.meses.length > 0 ? (
-          <div className="w-[140px] space-y-1.5">
-            <Label>Mes</Label>
-            <Select value={mes} onValueChange={(v) => setMes(v ?? '')}>
-              <SelectTrigger className="h-9 w-full rounded-xl">
-                <SelectValue placeholder="Mes" />
-              </SelectTrigger>
-              <SelectContent>
-                {filtros.meses.map((m) => (
-                  <SelectItem key={m} value={m}>
-                    {m}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+            <div className="w-[140px] space-y-1.5">
+              <Label>Mes</Label>
+              <Select value={r.mes} onValueChange={(v) => r.setMes(v ?? '')}>
+                <SelectTrigger className="h-9 w-full rounded-xl">
+                  <SelectValue placeholder="Mes" />
+                </SelectTrigger>
+                <SelectContent>
+                  {filtros.meses.map((m) => (
+                    <SelectItem key={m} value={m}>
+                      {m}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           ) : (
             <p className="text-xs text-muted-foreground">Sin desglose mensual (dato anual).</p>
           )}
-          {isRedes ? (
+          {r.isRedes ? (
             <>
               <div className="min-w-[160px] flex-1 space-y-1.5 sm:max-w-xs">
                 <Label>Red</Label>
                 <Select
-                  value={red}
+                  value={r.red}
                   onValueChange={(v) => {
-                    setRed(v ?? 'all')
-                    setMicrored('all')
+                    r.setRed(v ?? 'all')
+                    r.setMicrored('all')
                   }}
                 >
                   <SelectTrigger className="h-9 w-full rounded-xl">
@@ -508,9 +194,9 @@ export function CgReportPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todas</SelectItem>
-                    {filtros.redes.map((r) => (
-                      <SelectItem key={r} value={r}>
-                        {r}
+                    {filtros.redes.map((item) => (
+                      <SelectItem key={item} value={item}>
+                        {item}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -519,16 +205,16 @@ export function CgReportPage() {
               <div className="min-w-[160px] flex-1 space-y-1.5 sm:max-w-xs">
                 <Label>Microred</Label>
                 <Select
-                  value={microred}
-                  onValueChange={(v) => setMicrored(v ?? 'all')}
-                  disabled={red === 'all'}
+                  value={r.microred}
+                  onValueChange={(v) => r.setMicrored(v ?? 'all')}
+                  disabled={r.red === 'all'}
                 >
                   <SelectTrigger className="h-9 w-full rounded-xl">
                     <SelectValue placeholder="Microred" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todas</SelectItem>
-                    {microredesFiltradas.map((m) => (
+                    {r.microredesFiltradas.map((m) => (
                       <SelectItem key={`${m.red}-${m.microred}`} value={m.microred}>
                         {m.microred}
                       </SelectItem>
@@ -540,13 +226,13 @@ export function CgReportPage() {
           ) : (
             <div className="min-w-[180px] flex-1 space-y-1.5 sm:max-w-xs">
               <Label>Provincia</Label>
-              <Select value={provincia} onValueChange={(v) => setProvincia(v ?? 'all')}>
+              <Select value={r.provincia} onValueChange={(v) => r.setProvincia(v ?? 'all')}>
                 <SelectTrigger className="h-9 w-full rounded-xl">
                   <SelectValue placeholder="Provincia" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todas</SelectItem>
-                  {provinciasUnicas.map((p) => (
+                  {r.provinciasUnicas.map((p) => (
                     <SelectItem key={p} value={p}>
                       {p}
                     </SelectItem>
@@ -558,16 +244,16 @@ export function CgReportPage() {
           <div className="relative min-w-[200px] flex-1 sm:max-w-sm">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              placeholder={isRedes ? 'Buscar establecimiento...' : 'Buscar distrito...'}
+              value={r.busqueda}
+              onChange={(e) => r.setBusqueda(e.target.value)}
+              placeholder={r.isRedes ? 'Buscar establecimiento...' : 'Buscar distrito...'}
               className="h-9 rounded-xl pl-9"
             />
           </div>
         </div>
       </div>
 
-      {loadingData ? (
+      {r.loadingData ? (
         <div className="flex h-48 items-center justify-center gap-2 text-muted-foreground">
           <Loader2 className="size-5 animate-spin text-emerald-800" />
           Cargando datos…
@@ -587,42 +273,42 @@ export function CgReportPage() {
                 <span>Logro</span>
               </div>
               <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                {mesLabel ?? mes} {anioLabel ?? anio}
+                {r.mesLabel ?? r.mes} {r.anioLabel ?? r.anio}
               </span>
             </div>
             <p
               className={cn(
                 'text-4xl font-black tracking-tight tabular-nums md:text-5xl',
-                kpiTone === 'success' && 'text-teal-700',
-                kpiTone === 'warning' && 'text-amber-600',
-                kpiTone === 'danger' && 'text-rose-600',
-                kpiTone === 'neutral' && 'text-slate-800',
+                r.kpiTone === 'success' && 'text-teal-700',
+                r.kpiTone === 'warning' && 'text-amber-600',
+                r.kpiTone === 'danger' && 'text-rose-600',
+                r.kpiTone === 'neutral' && 'text-slate-800',
               )}
             >
-              {fmtLogro(total?.avance_pct, kind)}
+              {fmtLogro(r.total?.avance_pct, r.kind)}
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <span className="text-xs text-muted-foreground">
                 Cumplimiento{' '}
                 <span className="font-semibold text-slate-700">
-                  {fmtPct(total?.cumplimiento_pct)}
+                  {fmtPct(r.total?.cumplimiento_pct)}
                 </span>
               </span>
-              {fmtMetaLabel(refMeta, kind, slug) ? (
+              {chartRefs && fmtMetaLabel(chartRefs.refMeta, r.kind, slug) ? (
                 <span className="inline-flex items-center rounded-md border border-emerald-200/80 bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700 shadow-sm">
-                  Meta {fmtMetaLabel(refMeta, kind, slug)}
+                  Meta {fmtMetaLabel(chartRefs.refMeta, r.kind, slug)}
                 </span>
               ) : null}
-              {refUmbral != null ? (
+              {chartRefs?.refUmbral != null ? (
                 <span className="inline-flex items-center rounded-md border border-amber-200/80 bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-700 shadow-sm">
-                  Umbral {fmtLogro(refUmbral, kind)}
+                  Umbral {fmtLogro(chartRefs.refUmbral, r.kind)}
                 </span>
               ) : null}
             </div>
-            {kind === 'dual_ratio' && total?.extras ? (
+            {r.kind === 'dual_ratio' && r.total?.extras ? (
               <p className="mt-1 text-xs text-muted-foreground">
-                UCI {fmtPct(Number(total.extras.logro_uci))} · cumplimiento{' '}
-                {fmtPct(Number(total.extras.cumplimiento_uci))}
+                UCI {fmtPct(Number(r.total.extras.logro_uci))} · cumplimiento{' '}
+                {fmtPct(Number(r.total.extras.cumplimiento_uci))}
               </p>
             ) : null}
             <div className="my-4 h-px bg-border" />
@@ -630,35 +316,30 @@ export function CgReportPage() {
               <div className="rounded-lg bg-sky-50/80 px-3 py-2">
                 <p className="text-[11px] font-medium text-sky-800/70">Denominador</p>
                 <p className="mt-0.5 text-lg font-bold text-slate-800 tabular-nums">
-                  {total?.denominador?.toLocaleString('es-PE') ?? '—'}
+                  {r.total?.denominador?.toLocaleString('es-PE') ?? '—'}
                 </p>
               </div>
               <div className="rounded-lg bg-teal-50/80 px-3 py-2">
                 <p className="text-[11px] font-medium text-teal-800/70">Numerador</p>
                 <p className="mt-0.5 text-lg font-bold text-slate-800 tabular-nums">
-                  {total?.numerador?.toLocaleString('es-PE') ?? '—'}
+                  {r.total?.numerador?.toLocaleString('es-PE') ?? '—'}
                 </p>
               </div>
             </div>
           </div>
           <div className="lg:col-span-5">
-            <FedAvanceBarChart
-              titulo={chartTitle}
-              data={chartData}
-              meta={refMeta}
-              umbral={refUmbral}
-              pctMode={chartPctMode}
-              unit={chartUnit}
-            />
+            <FedAvanceBarChart titulo={r.chartTitle} data={r.chartData} />
           </div>
           <div className="lg:col-span-4">
-            <FedTendenciaChart
-              data={tendenciaData}
-              meta={tendenciaMeta}
-              umbral={refUmbral}
-              unit={chartUnit}
-              percentScale={chartPercentScale}
-            />
+            {chartRefs ? (
+              <FedTendenciaChart
+                data={r.tendenciaData}
+                meta={chartRefs.tendenciaMeta}
+                umbral={chartRefs.refUmbral}
+                unit={chartRefs.chartUnit}
+                percentScale={chartRefs.chartPercentScale}
+              />
+            ) : null}
           </div>
         </div>
       )}
@@ -666,14 +347,14 @@ export function CgReportPage() {
       <div className={cn('overflow-hidden', cardSurface)}>
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 bg-slate-50/80 px-4 py-3 md:px-5">
           <div className="flex flex-wrap items-center gap-2">
-            {isRedes ? (
+            {r.isRedes ? (
               <span className="rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-slate-700">
-                {redes?.establecimientos.length ?? 0} establecimientos ·{' '}
-                {redes?.microredes.length ?? 0} microrredes · {redes?.redes.length ?? 0} redes
+                {r.redes?.establecimientos.length ?? 0} establecimientos ·{' '}
+                {r.redes?.microredes.length ?? 0} microrredes · {r.redes?.redes.length ?? 0} redes
               </span>
             ) : (
               <span className="text-sm text-muted-foreground">
-                {tabla?.distritos.length ?? 0} distritos · {tabla?.provincias.length ?? 0}{' '}
+                {r.tabla?.distritos.length ?? 0} distritos · {r.tabla?.provincias.length ?? 0}{' '}
                 provincias
               </span>
             )}
@@ -683,10 +364,10 @@ export function CgReportPage() {
               <button
                 key={v}
                 type="button"
-                onClick={() => setVista(v)}
+                onClick={() => r.setVista(v)}
                 className={cn(
                   'rounded-lg border px-3 py-1 text-xs font-semibold transition-colors',
-                  vista === v
+                  r.vista === v
                     ? 'border-primary bg-primary text-primary-foreground'
                     : 'border-border bg-card text-muted-foreground hover:bg-muted',
                 )}
@@ -696,24 +377,24 @@ export function CgReportPage() {
             ))}
           </div>
         </div>
-        {loadingData ? (
+        {r.loadingData ? (
           <div className="flex h-32 items-center justify-center gap-2 text-muted-foreground">
             <Loader2 className="size-5 animate-spin" />
             Cargando tabla…
           </div>
-        ) : isRedes && redes ? (
+        ) : r.isRedes && r.redes ? (
           <FedRedesTable
-            redes={redes as unknown as FedTablaRedes}
-            busqueda={busqueda}
-            meta={meta || 100}
-            vista={vista}
+            redes={r.redes as unknown as FedTablaRedes}
+            busqueda={r.busqueda}
+            meta={r.metaFallback || 100}
+            vista={r.vista}
           />
-        ) : !isRedes && tabla ? (
+        ) : !r.isRedes && r.tabla ? (
           <FedTerritorialTable
-            tabla={tabla as unknown as FedTablaCompleta}
-            busqueda={busqueda}
-            meta={meta || 100}
-            vista={vista}
+            tabla={r.tabla as unknown as FedTablaCompleta}
+            busqueda={r.busqueda}
+            meta={r.metaFallback || 100}
+            vista={r.vista}
           />
         ) : (
           <div className="flex h-24 items-center justify-center text-sm text-muted-foreground">
