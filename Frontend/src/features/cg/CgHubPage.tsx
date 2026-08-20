@@ -106,9 +106,13 @@ export function CgHubPage() {
                               <ArrowRight className="size-4 shrink-0 opacity-0 transition-all duration-300 group-hover:translate-x-0.5 group-hover:opacity-100" />
                             </CardTitle>
                             <CardDescription>
-                              {ind.meta_pct
-                                ? `Meta: ${ind.meta_pct}${ind.kind === 'ratio_pct' || ind.kind === 'inverse_pct' ? '%' : ''}`
-                                : 'Sin meta fija'}
+                              {ind.meta_variable
+                                ? 'Meta variable'
+                                : ind.meta_pct
+                                  ? `Meta: ${ind.meta_pct}${ind.kind === 'ratio_pct' || ind.kind === 'inverse_pct' ? '%' : ind.kind === 'rate_10k' ? '' : ''}`
+                                  : ind.umbral != null
+                                    ? `Umbral: ${ind.umbral}%`
+                                    : 'Sin meta fija'}
                             </CardDescription>
                           </div>
                         </CardHeader>

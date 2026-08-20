@@ -49,6 +49,18 @@ function fmtPct(v: number | null | undefined) {
   return `${Number(v).toFixed(2)}%`
 }
 
+function fmtMetaLabel(
+  meta: number | null | undefined,
+  kind?: string,
+  slug?: string,
+) {
+  if (slug === 'cg18') return '12–30 egresos/cama'
+  if (meta == null) return null
+  if (kind === 'ratio_raw') return String(meta)
+  if (kind === 'rate_10k') return String(meta)
+  return `${Number(meta).toFixed(2)}${kind === 'ratio_pct' || kind === 'inverse_pct' || kind === 'dual_ratio' ? '%' : ''}`
+}
+
 function fmtLogro(v: number | null | undefined, kind?: string) {
   if (v == null) return '—'
   if (kind === 'ratio_raw') return Number(v).toFixed(2)
@@ -579,7 +591,9 @@ export function CgReportPage() {
             </p>
             <p className="mt-2 text-xs text-muted-foreground">
               Cumplimiento {fmtPct(total?.cumplimiento_pct)}
-              {total?.meta != null ? ` · Meta ${fmtLogro(total.meta, kind)}` : ''}
+              {fmtMetaLabel(total?.meta, kind, slug)
+                ? ` · Meta ${fmtMetaLabel(total?.meta, kind, slug)}`
+                : ''}
               {total?.umbral != null ? ` · Umbral ${fmtLogro(total.umbral, kind)}` : ''}
             </p>
             {kind === 'dual_ratio' && total?.extras ? (

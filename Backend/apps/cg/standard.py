@@ -233,10 +233,21 @@ def _meta_eoc(eoc: float) -> float:
 
 
 def _meta_cg14(categoria: str | None) -> float | None:
-    cat = (categoria or "").upper()
+    """Grupo A–D o categoría hospitalaria → logro esperado (%)."""
+    cat = (categoria or "").upper().strip()
+    if not cat:
+        return None
+    if "GRUPO A" in cat or cat in {"A", "GRUPOA"}:
+        return 80.0
+    if "GRUPO B" in cat or cat in {"B", "GRUPOB"}:
+        return 70.0
+    if "GRUPO C" in cat or cat in {"C", "GRUPOC"}:
+        return 60.0
+    if "GRUPO D" in cat or cat in {"D", "GRUPOD"}:
+        return 40.0
     if cat.startswith("III"):
         return 80.0
-    if cat in {"II-2", "II-E", "II-2-E"}:
+    if cat in {"II-2", "II-E", "II-2-E", "II-2E"}:
         return 70.0
     if cat.startswith("II"):
         return 60.0
@@ -245,9 +256,30 @@ def _meta_cg14(categoria: str | None) -> float | None:
     return None
 
 
+def _meta_cg17(departamento: str | None) -> float:
+    dep = (departamento or "").upper()
+    if "LIMA" in dep:
+        return 35.0
+    return 30.0
+
+
+def _meta_cg19(denominador: float) -> float | None:
+    if denominador > 150:
+        return 30.0
+    if denominador >= 101:
+        return 40.0
+    if denominador >= 60:
+        return 50.0
+    if denominador >= 40:
+        return 60.0
+    return None
+
+
 def _meta_cg21(categoria: str | None) -> float:
-    cat = (categoria or "").upper()
-    return 60.0 if cat.startswith("II-1") else 85.0
+    cat = (categoria or "").upper().strip()
+    if cat.startswith("II-1") or cat == "II-1":
+        return 60.0
+    return 85.0
 
 
 def _meta_cg25(categoria: str | None) -> float:
@@ -280,6 +312,7 @@ def _apply_metrics(
     *,
     extras: dict[str, float] | None = None,
     categoria: str | None = None,
+    departamento: str | None = None,
 ) -> dict[str, Any]:
     extras = extras or {}
     kind = meta["kind"]
@@ -295,32 +328,49 @@ def _apply_metrics(
     else:
         logro = round(numerador / denominador * 100, 2) if denominador else 0.0
 
-    if meta["slug"] == "cg10":
+    slug = meta["slug"]
+    if slug == "cg10":
         goal = _meta_eoc(extras.get("NUM_EOC_2026", 0.0))
         umbral = 10.0
-    elif meta["slug"] == "cg14":
+    elif slug == "cg14":
         goal = _meta_cg14(categoria)
-    elif meta["slug"] == "cg21":
+        umbral = None
+    elif slug == "cg17":
+        goal = _meta_cg17(departamento)
+    elif slug == "cg19":
+        goal = _meta_cg19(denominador)
+    elif slug == "cg21":
         goal = _meta_cg21(categoria)
-    elif meta["slug"] == "cg25":
+    elif slug == "cg25":
         goal = _meta_cg25(categoria)
+    elif slug == "cg18":
+        goal = 30.0
+        umbral = None
 
     cumplimiento: float | None = None
-    if kind == "inverse_pct" and meta["slug"] == "cg20":
+    if kind == "inverse_pct" and slug == "cg20":
         cumplimiento = 100.0 if logro <= 5 else 0.0
+    elif kind == "ratio_raw" and slug == "cg18":
+        cumplimiento = 100.0 if 12 <= logro <= 30 else 0.0
+    elif slug == "cg14" and goal is not None:
+        cumplimiento = 100.0 if logro >= goal else 0.0
+    elif slug == "cg19" and goal is not None:
+        cumplimiento = 100.0 if logro >= goal else 0.0
+    elif slug == "cg10" and umbral is not None and goal is not None:
+        cumplimiento = _linear_cumplimiento(logro, float(umbral), float(goal))
     elif kind == "dual_ratio":
         cumplimiento = 100.0 if logro >= 80 else 0.0
         den_uci = extras.get("Den_UCI", 0.0)
         num_uci = extras.get("Num_UCI", 0.0)
         extras["logro_uci"] = round(num_uci / den_uci * 100, 2) if den_uci else 0.0
         extras["cumplimiento_uci"] = 100.0 if extras["logro_uci"] >= 90 else 0.0
-    elif kind == "ratio_raw" and meta["slug"] == "cg24":
+    elif kind == "ratio_raw" and slug == "cg24":
         cumplimiento = 100.0 if 0 <= logro <= 2 else 0.0
-    elif kind == "ratio_raw" and meta["slug"] == "cg25" and goal is not None:
+    elif kind == "ratio_raw" and slug == "cg25" and goal is not None:
         cumplimiento = 100.0 if logro <= goal else 0.0
-    elif kind == "ratio_raw" and meta["slug"] == "cg26":
+    elif kind == "ratio_raw" and slug == "cg26":
         cumplimiento = 100.0 if logro >= 2 else 0.0
-    elif kind == "ratio_raw" and meta["slug"] == "cg21" and goal is not None:
+    elif kind == "ratio_raw" and slug == "cg21" and goal is not None:
         cumplimiento = 100.0 if logro >= goal else 0.0
     elif umbral is not None and goal is not None and kind in {"ratio_pct", "rate_10k"}:
         cumplimiento = _linear_cumplimiento(logro, float(umbral), float(goal))
@@ -344,9 +394,15 @@ def _metrics_row(
     denominador: float,
     extras: dict[str, float],
     categoria: str | None = None,
+    departamento: str | None = None,
 ) -> dict[str, Any]:
     m = _apply_metrics(
-        meta, numerador, denominador, extras=extras, categoria=categoria
+        meta,
+        numerador,
+        denominador,
+        extras=extras,
+        categoria=categoria,
+        departamento=departamento,
     )
     return {
         "denominador": m["denominador"],
@@ -516,7 +572,13 @@ def get_tabla_completa(
         den = _num(r.get("denominador"))
         num = _num(r.get("numerador"))
         extras = _extract_extras(meta, r)
-        metrics = _metrics_row(meta, num, den, extras)
+        metrics = _metrics_row(
+            meta,
+            num,
+            den,
+            extras,
+            departamento=str(r["DEPARTAMENTO"]) if r.get("DEPARTAMENTO") else None,
+        )
         distritos.append(
             {
                 "DEPARTAMENTO": r["DEPARTAMENTO"],
@@ -541,7 +603,13 @@ def get_tabla_completa(
             {
                 "DEPARTAMENTO": dep,
                 "PROVINCIA": prov,
-                **_metrics_row(meta, acc["num"], acc["den"], extras),
+                **_metrics_row(
+                    meta,
+                    acc["num"],
+                    acc["den"],
+                    extras,
+                    departamento=str(dep) if dep else None,
+                ),
             }
         )
 
@@ -596,6 +664,7 @@ def get_tabla_redes(
                     ISNULL(MicroRed, 'SIN MICRORED') AS MICRORED,
                     {eess} AS ESTABLECIMIENTO,
                     MAX(Categoria) AS Categoria,
+                    MAX(Departamento) AS Departamento,
                     {aggs}
                 FROM {t} {where}
                 GROUP BY ISNULL(Red, 'SIN RED'), ISNULL(MicroRed, 'SIN MICRORED'), {eess}
@@ -620,7 +689,15 @@ def get_tabla_redes(
         num = _num(r.get("numerador"))
         extras = _extract_extras(meta, r)
         cat = r.get("Categoria")
-        metrics = _metrics_row(meta, num, den, extras, categoria=str(cat) if cat else None)
+        dep = r.get("Departamento")
+        metrics = _metrics_row(
+            meta,
+            num,
+            den,
+            extras,
+            categoria=str(cat) if cat else None,
+            departamento=str(dep) if dep else None,
+        )
         establecimientos.append(
             {
                 "RED": r["RED"],

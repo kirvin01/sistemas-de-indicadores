@@ -7,6 +7,7 @@ export type CgIndicator = {
   grupo: string
   bloque: string
   meta_pct: number
+  meta_variable?: boolean
   umbral: number | null
   kind: string
   patron: string

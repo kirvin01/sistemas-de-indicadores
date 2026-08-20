@@ -6,6 +6,9 @@ from typing import Any, Literal, NotRequired, TypedDict
 
 Kind = Literal["ratio_pct", "ratio_raw", "inverse_pct", "dual_ratio", "rate_10k"]
 
+# Indicadores con logro esperado móvil o segmentado (no meta fija en catálogo).
+META_VARIABLE_SLUGS = frozenset({"cg10", "cg14", "cg17", "cg19", "cg21", "cg25"})
+
 
 class IndicatorMeta(TypedDict):
     slug: str
@@ -69,12 +72,15 @@ INDICATORS: dict[str, IndicatorMeta] = {
         meta=50,
         extras=["num", "num_sup_He", "num_dosaje", "num_t1", "num_T3"],
         bloque="Niñez y nutrición",
-        descripcion="Porcentaje de niños con diagnóstico previo de anemia que se recuperan (num_recup / den).",
+        descripcion=(
+            "Porcentaje de niñas y niños de 12 a 18 meses, con diagnóstico de anemia "
+            "entre los 6 y 11 meses, que se han recuperado. Umbral 40%, logro esperado 50%."
+        ),
     ),
     "cg02": _i(
         "cg02",
         "CG-02",
-        "Culminación de suplementación preventiva de hierro (6 a 11 meses)",
+        "Suplementación preventiva de hierro (6 a 11 meses)",
         "ID_02_Web",
         "den",
         "num",
@@ -82,6 +88,10 @@ INDICATORS: dict[str, IndicatorMeta] = {
         meta=70,
         extras=["num_term_ta", "num_ctrl_hb", "num_dosaje_fin"],
         bloque="Niñez y nutrición",
+        descripcion=(
+            "Niños de 6 a 11 meses que iniciaron suplementación con hierro, culminan "
+            "6 meses y se mantienen sin anemia. Umbral 40%, logro esperado 70%."
+        ),
     ),
     "cg03": _i(
         "cg03",
@@ -90,7 +100,10 @@ INDICATORS: dict[str, IndicatorMeta] = {
         "ID_03_Web",
         "den",
         "num",
+        umbral=50,
+        meta=80,
         bloque="Niñez y nutrición",
+        descripcion="Recién nacidos con tamizaje neonatal metabólico. Umbral 50%, logro esperado 80%.",
     ),
     "cg04": _i(
         "cg04",
@@ -99,24 +112,31 @@ INDICATORS: dict[str, IndicatorMeta] = {
         "ID_04_Web",
         "den",
         "num",
+        umbral=20,
+        meta=50,
         extras=["num1", "num_2"],
         bloque="Niñez y nutrición",
+        descripcion=(
+            "Menores de 2 años con crecimiento inadecuado que mejoran tras seguimiento. "
+            "Umbral 20%, logro esperado 50%."
+        ),
     ),
     "cg05": _i(
         "cg05",
         "CG-05",
-        "Vacunación completa para la edad (24 meses)",
+        "Vacunación completa a los 24 meses",
         "ID_05_Web",
         "Denominador",
         "Numerador",
         umbral=70,
         meta=85,
         bloque="Inmunizaciones",
+        descripcion="Niñas/niños de 24 meses con vacunas para su edad. Umbral 70%, logro esperado ≥ 85%.",
     ),
     "cg06": _i(
         "cg06",
         "CG-06",
-        "Vacunación oportuna de BCG y Hepatitis B (recién nacidos)",
+        "Vacunación oportuna BCG y Hepatitis B",
         "ID_06_Web",
         "den",
         "num",
@@ -124,6 +144,10 @@ INDICATORS: dict[str, IndicatorMeta] = {
         meta=95,
         extras=["Vacuna_BCG", "Vacuna_HVB"],
         bloque="Inmunizaciones",
+        descripcion=(
+            "Recién nacidos de parto institucional vacunados con BCG y Anti-Hepatitis B "
+            "en las primeras 24 horas. Umbral 90%, logro esperado ≥ 95%."
+        ),
     ),
     "cg07": _i(
         "cg07",
@@ -132,30 +156,42 @@ INDICATORS: dict[str, IndicatorMeta] = {
         "ID_07_Web",
         "den",
         "num",
+        umbral=80,
+        meta=90,
         bloque="TB y VIH",
+        descripcion="Tasa de éxito de tratamiento TB sensible. Umbral 80%, logro esperado 90%.",
     ),
     "cg08": _i(
         "cg08",
         "CG-08",
-        "Contactos de TB con terapia preventiva (TPTB) completa",
+        "Contactos de TB con TPTB completa",
         "ID_08_Web",
         "den",
         "num",
         bloque="TB y VIH",
+        descripcion=(
+            "Porcentaje de contactos de TB que culminan Terapia Preventiva para TB (TPTB). "
+            "Ficha técnica sin umbral ni logro esperado definidos."
+        ),
     ),
     "cg09": _i(
         "cg09",
         "CG-09",
-        "Terapia preventiva para TB en adultos con VIH en TAR",
+        "TPTB en adultos con VIH en TAR",
         "ID_09_Web",
         "denominador",
         "numerador",
+        umbral=65,
+        meta=90,
         bloque="TB y VIH",
+        descripcion=(
+            "Cobertura de TPTB en personas adultas con VIH en TAR. Umbral 65%, logro esperado 90%."
+        ),
     ),
     "cg10": _i(
         "cg10",
         "CG-10",
-        "Procedimientos estomatológicos preventivos (6 meses a 6 años)",
+        "Procedimientos estomatológicos preventivos",
         "ID_10_Web",
         "Den",
         "Num",
@@ -163,7 +199,11 @@ INDICATORS: dict[str, IndicatorMeta] = {
         meta=None,
         extras=["HO_CUMPLE", "AN_CUMPLE", "FB_CUMPLE", "PD_CUMPLE", "AS_CUMPLE", "NUM_EOC_2026"],
         bloque="Salud bucal y SSR",
-        descripcion="Meta dinámica según carga EOC (odontólogos).",
+        descripcion=(
+            "Niños de 6 meses a 6 años, 11 meses y 29 días con procedimientos preventivos. "
+            "Umbral 10%. Logro esperado según EOC: <100→50%, 100–199→40%, 200–299→30%, "
+            "300–399→25%, ≥400→20%."
+        ),
     ),
     "cg11": _i(
         "cg11",
@@ -187,17 +227,23 @@ INDICATORS: dict[str, IndicatorMeta] = {
             "Vasectomia",
         ],
         bloque="Salud bucal y SSR",
+        descripcion=(
+            "Personas que acceden a algún método anticonceptivo moderno. Umbral 20%, logro esperado 45%."
+        ),
     ),
     "cg12": _i(
         "cg12",
         "CG-12",
-        "Atención prenatal de gestantes referidas por riesgo en el hospital",
+        "APN en hospital de gestantes referidas por riesgo",
         "ID_12_Web",
         "Den",
         "Num",
         umbral=40,
         meta=80,
         bloque="Materno perinatal",
+        descripcion=(
+            "Gestantes con ≥2 APN en hospital referidas por factor de riesgo. Umbral 40%, logro esperado 80%."
+        ),
     ),
     "cg13": _i(
         "cg13",
@@ -210,16 +256,22 @@ INDICATORS: dict[str, IndicatorMeta] = {
         meta=60,
         extras=["num_exa", "num_apn", "num_suple"],
         bloque="Materno perinatal",
+        descripcion=(
+            "Gestantes con paquete preventivo básico priorizado. Umbral 30%, logro esperado 60%."
+        ),
     ),
     "cg14": _i(
         "cg14",
         "CG-14",
-        "Tratamiento oncológico oportuno (≤ 37 días)",
+        "Inicio oportuno de tratamiento oncológico",
         "ID_14_Web",
         "Denominador",
         "Numerador",
         bloque="Oncología y VPH",
-        descripcion="Meta segmentada por grupo de hospital (A–D) según categoría.",
+        descripcion=(
+            "Personas con cánceres prevalentes que inician tratamiento oncológico en ≤37 días. "
+            "Logro esperado por grupo IPRESS: A≥80%, B≥70%, C≥60%, D≥40%."
+        ),
     ),
     "cg15": _i(
         "cg15",
@@ -229,22 +281,29 @@ INDICATORS: dict[str, IndicatorMeta] = {
         "DENOMINADOR",
         "NUMERADOR",
         bloque="Oncología y VPH",
+        descripcion=(
+            "Mujeres de 40 a 69 años con mamografía bilateral de tamizaje. "
+            "Ficha técnica sin umbral ni logro esperado detallados."
+        ),
     ),
     "cg16": _i(
         "cg16",
         "CG-16",
-        "Vacunación contra el VPH en niños y niñas de 9 años",
+        "Vacunación VPH en niños y niñas de 9 años",
         "ID_16_Web",
         "denominador",
         "numerador",
         umbral=80,
         meta=90,
         bloque="Oncología y VPH",
+        descripcion=(
+            "Niñas y niños de 9 años vacunados contra VPH. Umbral 80%, logro esperado ≥ 90%."
+        ),
     ),
     "cg17": _i(
         "cg17",
         "CG-17",
-        "Atenciones en medicina de rehabilitación en menores de 5 años",
+        "Atenciones en medicina de rehabilitación (<5 años)",
         "ID_17_Web",
         "Den",
         "Num",
@@ -252,28 +311,39 @@ INDICATORS: dict[str, IndicatorMeta] = {
         meta=30,
         extras=["Atenciones"],
         bloque="Rehabilitación y salud mental",
-        descripcion="Meta regional 30% (Lima Metropolitana 35%).",
+        descripcion=(
+            "Menores de 5 años con deficiencias o riesgo de discapacidad y ≥6 atenciones en UPSS "
+            "de rehabilitación. Umbral 25%. Logro: 35% Lima Metropolitana, 30% Regional."
+        ),
     ),
     "cg18": _i(
         "cg18",
         "CG-18",
-        "Indicador CG-18",
+        "Egresos por salud mental en UHSMA",
         "ID_18_Web",
         "den",
         "num",
+        kind="ratio_raw",
+        meta=30,
         bloque="Rehabilitación y salud mental",
-        descripcion="Sin fórmula DAX en la guía; se reporta como porcentaje num/den.",
+        descripcion=(
+            "Egresos por problemas de salud mental en hospitales con UHSMA. "
+            "Logro esperado: 12 a 30 egresos por cama al año."
+        ),
     ),
     "cg19": _i(
         "cg19",
         "CG-19",
-        "Paquete de depresión / salud mental",
+        "Paquete estándar en personas con depresión",
         "ID_19_Web",
         "DENOMINADOR",
         "NUMERADOR",
         extras=["CUMPLE_03_ATC_SALUD_MENTAL", "CUMPLE_01_ATC_PSICOEDUCACION"],
         bloque="Rehabilitación y salud mental",
-        descripcion="Sin fórmula DAX en la guía; se reporta como porcentaje.",
+        descripcion=(
+            "Personas con diagnóstico de depresión que reciben paquete estándar. "
+            "Logro esperado según volumen: >150→30%, 101–150→40%, 60–100→50%, 40–59→60%."
+        ),
     ),
     "cg20": _i(
         "cg20",
@@ -283,22 +353,25 @@ INDICATORS: dict[str, IndicatorMeta] = {
         "den",
         "num",
         kind="inverse_pct",
-        umbral=5,
         meta=5,
         bloque="Hospitales y gestión",
-        descripcion="Desempeño inverso: menor o igual a 5% es cumplimiento 100%.",
+        descripcion=(
+            "Desempeño inverso. Logro esperado 5%. Si logro alcanzado ≤5%, cumplimiento 100%."
+        ),
     ),
     "cg21": _i(
         "cg21",
         "CG-21",
-        "Rendimiento de sala de operaciones (SOP)",
+        "Rendimiento de sala de operaciones",
         "ID_21_Web",
         "Den",
         "Num",
         kind="ratio_raw",
-        meta=85,
+        meta=None,
         bloque="Hospitales y gestión",
-        descripcion="Cirugías electivas por sala-día. Meta 60 (II-1) o 85 (otros).",
+        descripcion=(
+            "Cirugías electivas por sala-día. Logro: II con 1 sala=60; II con ≥2 salas o III=85."
+        ),
     ),
     "cg22": _i(
         "cg22",
@@ -309,7 +382,10 @@ INDICATORS: dict[str, IndicatorMeta] = {
         "total_cirugias_suspendidas",
         kind="inverse_pct",
         bloque="Hospitales y gestión",
-        descripcion="Desempeño inverso: suspendidas / programadas.",
+        descripcion=(
+            "Cirugías suspendidas sobre programadas (desempeño inverso). "
+            "Ficha técnica sin umbral ni logro esperado definidos."
+        ),
     ),
     "cg23": _i(
         "cg23",
@@ -319,11 +395,10 @@ INDICATORS: dict[str, IndicatorMeta] = {
         "Den_Hosp",
         "Num_Hosp",
         kind="dual_ratio",
-        umbral=80,
         meta=80,
         extras=["Den_UCI", "Num_UCI"],
         bloque="Hospitales y gestión",
-        descripcion="Hospitalización ≥ 80% y UCI ≥ 90%.",
+        descripcion="Logro esperado: hospitalización 80%, UCI 90%.",
     ),
     "cg24": _i(
         "cg24",
@@ -333,22 +408,23 @@ INDICATORS: dict[str, IndicatorMeta] = {
         "Den",
         "Num",
         kind="ratio_raw",
-        umbral=0,
         meta=2,
         extras=["Dias_Renoxi"],
         bloque="Hospitales y gestión",
-        descripcion="Días promedio que una cama permanece libre (esperado 0 a 2).",
+        descripcion="Días promedio que una cama permanece libre. Logro esperado: 0 a 2 días.",
     ),
     "cg25": _i(
         "cg25",
         "CG-25",
-        "Promedio de espera en consulta externa de pacientes referidos",
+        "Espera en consulta externa de referidos",
         "ID_25_Web",
         "den",
         "num",
         kind="ratio_raw",
         bloque="Hospitales y gestión",
-        descripcion="Días de espera. Meta según categoría (I-4=20, II=35, III=45, III-E=22).",
+        descripcion=(
+            "Días de espera máximos: I-4=20, Hospital II=35, III=45, Institutos Especializados=22."
+        ),
     ),
     "cg26": _i(
         "cg26",
@@ -358,15 +434,14 @@ INDICATORS: dict[str, IndicatorMeta] = {
         "DENOMINADOR_CONSULTORIO_FISICO",
         "NUMERADOR_CONSULTORIO_FUNCIONAL",
         kind="ratio_raw",
-        umbral=2,
         meta=2,
         bloque="Hospitales y gestión",
-        descripcion="Turnos por consultorio físico; esperado ≥ 2.",
+        descripcion="Turnos por consultorio físico (≥2 turnos, 12 h/día).",
     ),
     "cg32": _i(
         "cg32",
         "CG-32",
-        "Implementación de telemedicina",
+        "Tasa de uso de servicios de telemedicina",
         "ID_32_Web",
         "den",
         "Num_Pond",
@@ -375,7 +450,7 @@ INDICATORS: dict[str, IndicatorMeta] = {
         meta=100,
         extras=["TeleInterconsultas", "teleconsultas", "telemonitoreos", "num"],
         bloque="Telemedicina",
-        descripcion="Tasa ponderada por 10 000 habitantes (Num_Pond / den × 10 000).",
+        descripcion="Tasa por 10 000 habitantes (Num_Pond/den×10 000). Umbral 10, logro esperado 100.",
     ),
 }
 
@@ -389,6 +464,7 @@ def list_indicators() -> list[dict[str, Any]]:
             "grupo": m["grupo"],
             "bloque": m["bloque"],
             "meta_pct": m["meta"] if m["meta"] is not None else 0,
+            "meta_variable": m["slug"] in META_VARIABLE_SLUGS,
             "umbral": m["umbral"],
             "kind": m["kind"],
             "patron": "cg-standard",
