@@ -4,7 +4,11 @@ export const chartTheme = {
   comparative: '#0EA5E9',
   /** Serie principal / avance (numerador o %) */
   progress: '#0F766E',
-  /** Meta / alerta */
+  /** Logro esperado / meta */
+  meta: '#059669',
+  /** Valor umbral */
+  umbral: '#D97706',
+  /** Meta / alerta (legado) */
   alert: '#E11D48',
   grid: 'rgba(30, 41, 59, 0.07)',
   axis: '#64748B',

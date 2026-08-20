@@ -360,7 +360,19 @@ export function CgReportPage() {
   }
 
   const kpiTone = cgAvanceTone(total?.avance_pct, meta || 50, kind)
-  const tendenciaMeta = kind === 'rate_10k' || kind === 'ratio_raw' ? meta || 0 : meta || 100
+  const refMeta =
+    slug === 'cg18' ? 30 : (total?.meta ?? (meta || null))
+  const refUmbral =
+    slug === 'cg18' ? 12 : (total?.umbral ?? filtros.umbral ?? null)
+  const chartUnit =
+    kind === 'rate_10k' || kind === 'ratio_raw' ? '' : '%'
+  const chartPercentScale = chartUnit === '%'
+  const chartPctMode =
+    kind === 'ratio_pct' || kind === 'inverse_pct' || kind === 'dual_ratio'
+  const tendenciaMeta =
+    kind === 'rate_10k' || kind === 'ratio_raw'
+      ? Number(refMeta) || 0
+      : Number(refMeta) || 100
   const fuenteAplicada = (isRedes ? redes?.fuente : tabla?.fuente) ?? filtros.fuente_aplicada
   const fuenteLabel = fuenteAplicada ? `Data ${fuenteAplicada}` : null
 
@@ -589,13 +601,24 @@ export function CgReportPage() {
             >
               {fmtLogro(total?.avance_pct, kind)}
             </p>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Cumplimiento {fmtPct(total?.cumplimiento_pct)}
-              {fmtMetaLabel(total?.meta, kind, slug)
-                ? ` · Meta ${fmtMetaLabel(total?.meta, kind, slug)}`
-                : ''}
-              {total?.umbral != null ? ` · Umbral ${fmtLogro(total.umbral, kind)}` : ''}
-            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="text-xs text-muted-foreground">
+                Cumplimiento{' '}
+                <span className="font-semibold text-slate-700">
+                  {fmtPct(total?.cumplimiento_pct)}
+                </span>
+              </span>
+              {fmtMetaLabel(refMeta, kind, slug) ? (
+                <span className="inline-flex items-center rounded-md border border-emerald-200/80 bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700 shadow-sm">
+                  Meta {fmtMetaLabel(refMeta, kind, slug)}
+                </span>
+              ) : null}
+              {refUmbral != null ? (
+                <span className="inline-flex items-center rounded-md border border-amber-200/80 bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-700 shadow-sm">
+                  Umbral {fmtLogro(refUmbral, kind)}
+                </span>
+              ) : null}
+            </div>
             {kind === 'dual_ratio' && total?.extras ? (
               <p className="mt-1 text-xs text-muted-foreground">
                 UCI {fmtPct(Number(total.extras.logro_uci))} · cumplimiento{' '}
@@ -619,10 +642,23 @@ export function CgReportPage() {
             </div>
           </div>
           <div className="lg:col-span-5">
-            <FedAvanceBarChart titulo={chartTitle} data={chartData} />
+            <FedAvanceBarChart
+              titulo={chartTitle}
+              data={chartData}
+              meta={refMeta}
+              umbral={refUmbral}
+              pctMode={chartPctMode}
+              unit={chartUnit}
+            />
           </div>
           <div className="lg:col-span-4">
-            <FedTendenciaChart data={tendenciaData} meta={tendenciaMeta} />
+            <FedTendenciaChart
+              data={tendenciaData}
+              meta={tendenciaMeta}
+              umbral={refUmbral}
+              unit={chartUnit}
+              percentScale={chartPercentScale}
+            />
           </div>
         </div>
       )}
