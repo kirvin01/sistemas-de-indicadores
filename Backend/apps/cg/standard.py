@@ -67,10 +67,20 @@ def _sum_expr(col: str, alias: str) -> str:
     return f"SUM(CAST({_qident(col)} AS FLOAT)) AS {_qident(alias)}"
 
 
+def _row_scope_sql(meta: IndicatorMeta) -> str | None:
+    """Filtros de fila propios de un indicador (no aplican al resto)."""
+    if meta["slug"] == "cg23":
+        return "Valido = 1"
+    return None
+
+
 def _build_filters(
     *,
+    meta: IndicatorMeta | None = None,
     anio: int | None = None,
     mes: str | None = None,
+    meses: list[str] | None = None,
+    mes_fuente_pairs: list[tuple[str, str | None]] | None = None,
     departamento: str | None = None,
     provincia: str | None = None,
     red: str | None = None,
@@ -84,11 +94,42 @@ def _build_filters(
     if anio is not None:
         filters.append("anio = %s")
         params.append(anio)
-    if mes:
+
+    if mes_fuente_pairs:
+        parts: list[str] = []
+        for m, fu in mes_fuente_pairs:
+            if fu:
+                parts.append("(UPPER(mes) = UPPER(%s) AND UPPER(Fuente) = UPPER(%s))")
+                params.extend([m, fu])
+            else:
+                parts.append("UPPER(mes) = UPPER(%s)")
+                params.append(m)
+        if parts:
+            filters.append("(" + " OR ".join(parts) + ")")
+        else:
+            filters.append("1 = 0")
+    elif meses and len(meses) > 1:
+        placeholders = ", ".join(["%s"] * len(meses))
+        filters.append(f"UPPER(mes) IN ({placeholders})")
+        params.extend(meses)
+        if fuente:
+            filters.append("UPPER(Fuente) = UPPER(%s)")
+            params.append(fuente)
+    elif mes:
         filters.append("UPPER(mes) = UPPER(%s)")
         params.append(mes)
+        if fuente:
+            filters.append("UPPER(Fuente) = UPPER(%s)")
+            params.append(fuente)
     elif require_null_mes:
         filters.append("mes IS NULL")
+        if fuente:
+            filters.append("UPPER(Fuente) = UPPER(%s)")
+            params.append(fuente)
+    elif fuente:
+        filters.append("UPPER(Fuente) = UPPER(%s)")
+        params.append(fuente)
+
     if departamento:
         filters.append("UPPER(Departamento) = UPPER(%s)")
         params.append(departamento)
@@ -101,14 +142,48 @@ def _build_filters(
     if microred:
         filters.append("UPPER(MicroRed) = UPPER(%s)")
         params.append(microred)
-    if fuente:
-        filters.append("UPPER(Fuente) = UPPER(%s)")
-        params.append(fuente)
     if seguro:
         filters.append("UPPER(seguro) = UPPER(%s)")
         params.append(seguro)
+    if meta is not None:
+        extra = _row_scope_sql(meta)
+        if extra:
+            filters.append(extra)
     where = ("WHERE " + " AND ".join(filters)) if filters else ""
     return where, params
+
+
+def _parse_meses(mes: str | None) -> list[str]:
+    if not mes:
+        return []
+    parts = [p.strip().upper() for p in str(mes).replace(";", ",").split(",")]
+    return [p for p in parts if p]
+
+
+def _mes_fuente_pairs(
+    meta: IndicatorMeta,
+    *,
+    anio: int,
+    meses: list[str],
+) -> list[tuple[str, str | None]]:
+    return [(m, resolve_fuente(meta, anio=anio, mes=m)) for m in meses]
+
+
+def _unify_fuente(pairs: list[tuple[str, str | None]]) -> str | None:
+    fuentes = {fu for _, fu in pairs if fu}
+    if len(fuentes) == 1:
+        return next(iter(fuentes))
+    if len(fuentes) > 1:
+        return "Mixta"
+    return None
+
+
+def _format_meses_label(meses: list[str]) -> str | None:
+    if not meses:
+        return None
+    if len(meses) == 1:
+        return meses[0]
+    return ", ".join(meses)
 
 
 _SEGURO_COL_CACHE: dict[str, bool] = {}
@@ -169,8 +244,10 @@ def _row_mes(row: dict[str, Any]) -> str | None:
 
 def _coverage_rows(meta: IndicatorMeta) -> list[dict[str, Any]]:
     t = _table(meta)
+    extra = _row_scope_sql(meta)
+    where = f" WHERE {extra}" if extra else ""
     with connections["cg"].cursor() as cur:
-        cur.execute(f"SELECT DISTINCT anio, mes, Fuente FROM {t}")
+        cur.execute(f"SELECT DISTINCT anio, mes, Fuente FROM {t}{where}")
         return _rows(cur)
 
 
@@ -477,10 +554,12 @@ def get_filtros(
         select_cols += ", seguro"
     try:
         with connections["cg"].cursor() as cur:
+            extra = _row_scope_sql(meta)
+            where = f" WHERE {extra}" if extra else ""
             cur.execute(
                 f"""
                 SELECT DISTINCT {select_cols}
-                FROM {t}
+                FROM {t}{where}
                 """
             )
             combos = _rows(cur)
@@ -496,8 +575,14 @@ def get_filtros(
     fuentes_set: set[str] = set()
     seguros_set: set[str] = set()
 
-    fuente_geo = resolve_fuente(meta, anio=anio, mes=mes) if anio is not None else None
-    mes_n = _norm_mes(mes)
+    meses_sel = _parse_meses(mes)
+    mes_n = meses_sel[0] if len(meses_sel) == 1 else None
+    meses_set_sel = set(meses_sel) if meses_sel else None
+    fuente_geo = (
+        resolve_fuente(meta, anio=anio, mes=mes_n)
+        if anio is not None and mes_n
+        else None
+    )
 
     for r in combos:
         fu = _canon_fuente(r.get("Fuente"))
@@ -512,11 +597,16 @@ def get_filtros(
             seguros_set.add(str(r["seguro"]).strip())
 
         use_geo = True
-        if fuente_geo and fu and fu != fuente_geo:
-            use_geo = False
-        if mes_n and rm != mes_n:
-            use_geo = False
         if anio is not None and r.get("anio") is not None and int(r["anio"]) != int(anio):
+            use_geo = False
+        if meses_set_sel:
+            if not rm or rm not in meses_set_sel:
+                use_geo = False
+            elif anio is not None and rm:
+                expected = resolve_fuente(meta, anio=anio, mes=rm)
+                if expected and fu and fu != expected:
+                    use_geo = False
+        elif fuente_geo and fu and fu != fuente_geo:
             use_geo = False
         if not use_geo:
             continue
@@ -575,22 +665,42 @@ def get_tabla_completa(
     microred: str | None = None,
     seguro: str | None = None,
 ) -> dict[str, Any]:
-    fuente = resolve_fuente(meta, anio=anio, mes=mes)
-    if fuente is None:
-        return _empty_tabla_completa(anio, mes, None, meta["kind"])
-    seguro_f = seguro if _table_has_seguro(meta) else None
-    t = _table(meta)
-    where, params = _build_filters(
-        anio=anio,
-        mes=mes,
-        departamento=departamento,
-        provincia=provincia,
-        red=red,
-        microred=microred,
-        fuente=fuente,
-        seguro=seguro_f,
-        require_null_mes=not mes,
-    )
+    meses = _parse_meses(mes)
+    pairs = _mes_fuente_pairs(meta, anio=anio, meses=meses) if meses else []
+    if meses and not any(fu for _, fu in pairs):
+        return _empty_tabla_completa(anio, _format_meses_label(meses), None, meta["kind"])
+    if not meses:
+        # anual / sin mes
+        fuente = resolve_fuente(meta, anio=anio, mes=None)
+        if fuente is None:
+            return _empty_tabla_completa(anio, None, None, meta["kind"])
+        seguro_f = seguro if _table_has_seguro(meta) else None
+        t = _table(meta)
+        where, params = _build_filters(
+            meta=meta,
+            anio=anio,
+            departamento=departamento,
+            provincia=provincia,
+            red=red,
+            microred=microred,
+            fuente=fuente,
+            seguro=seguro_f,
+            require_null_mes=True,
+        )
+    else:
+        fuente = _unify_fuente(pairs)
+        seguro_f = seguro if _table_has_seguro(meta) else None
+        t = _table(meta)
+        where, params = _build_filters(
+            meta=meta,
+            anio=anio,
+            mes_fuente_pairs=pairs,
+            departamento=departamento,
+            provincia=provincia,
+            red=red,
+            microred=microred,
+            seguro=seguro_f,
+        )
     aggs = _select_aggs(meta)
     try:
         with connections["cg"].cursor() as cur:
@@ -665,7 +775,8 @@ def get_tabla_completa(
     total = _apply_metrics(meta, tot_n, tot_d, extras=dict(tot_ex))
     return {
         "anio": anio,
-        "mes": (mes or "").upper() or None,
+        "mes": _format_meses_label(meses) if meses else None,
+        "meses": meses,
         "fuente": fuente,
         "kind": meta["kind"],
         "total": total,
@@ -685,22 +796,41 @@ def get_tabla_redes(
     microred: str | None = None,
     seguro: str | None = None,
 ) -> dict[str, Any]:
-    fuente = resolve_fuente(meta, anio=anio, mes=mes)
-    if fuente is None:
-        return _empty_tabla_redes(anio, mes, None, meta["kind"])
-    seguro_f = seguro if _table_has_seguro(meta) else None
-    t = _table(meta)
-    where, params = _build_filters(
-        anio=anio,
-        mes=mes,
-        departamento=departamento,
-        provincia=provincia,
-        red=red,
-        microred=microred,
-        fuente=fuente,
-        seguro=seguro_f,
-        require_null_mes=not mes,
-    )
+    meses = _parse_meses(mes)
+    pairs = _mes_fuente_pairs(meta, anio=anio, meses=meses) if meses else []
+    if meses and not any(fu for _, fu in pairs):
+        return _empty_tabla_redes(anio, _format_meses_label(meses), None, meta["kind"])
+    if not meses:
+        fuente = resolve_fuente(meta, anio=anio, mes=None)
+        if fuente is None:
+            return _empty_tabla_redes(anio, None, None, meta["kind"])
+        seguro_f = seguro if _table_has_seguro(meta) else None
+        t = _table(meta)
+        where, params = _build_filters(
+            meta=meta,
+            anio=anio,
+            departamento=departamento,
+            provincia=provincia,
+            red=red,
+            microred=microred,
+            fuente=fuente,
+            seguro=seguro_f,
+            require_null_mes=True,
+        )
+    else:
+        fuente = _unify_fuente(pairs)
+        seguro_f = seguro if _table_has_seguro(meta) else None
+        t = _table(meta)
+        where, params = _build_filters(
+            meta=meta,
+            anio=anio,
+            mes_fuente_pairs=pairs,
+            departamento=departamento,
+            provincia=provincia,
+            red=red,
+            microred=microred,
+            seguro=seguro_f,
+        )
     aggs = _select_aggs(meta)
     eess = (
         "COALESCE(NULLIF(LTRIM(RTRIM(Nombre_Establecimiento)), ''), "
@@ -790,7 +920,8 @@ def get_tabla_redes(
     total = _apply_metrics(meta, tot_n, tot_d, extras=dict(tot_ex))
     return {
         "anio": anio,
-        "mes": (mes or "").upper() or None,
+        "mes": _format_meses_label(meses) if meses else None,
+        "meses": meses,
         "fuente": fuente,
         "kind": meta["kind"],
         "total": total,
@@ -811,7 +942,7 @@ def get_resumen(
     t = _table(meta)
     seguro_f = seguro if _table_has_seguro(meta) else None
     where, params = _build_filters(
-        anio=anio, departamento=departamento, red=red, seguro=seguro_f
+        meta=meta, anio=anio, departamento=departamento, red=red, seguro=seguro_f
     )
     aggs = _select_aggs(meta)
     try:
