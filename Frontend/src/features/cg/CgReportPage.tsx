@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { fmtLogro, fmtMetaLabel, fmtPct } from '@/features/cg/cgFormatters'
+import { CgMesMultiSelect } from '@/features/cg/CgMesMultiSelect'
 import { CgToolbar } from '@/features/cg/CgToolbar'
 import { useCgReport } from '@/features/cg/useCgReport'
 import { FedAvanceBarChart, FedTendenciaChart } from '@/features/fed/FedCharts'
@@ -60,9 +61,14 @@ export function CgReportPage() {
   }
 
   const { filtros, chartRefs } = r
-  const fuenteLabel = r.fuenteAplicada ? `Data ${r.fuenteAplicada}` : null
+  const fuenteLabel = r.fuenteAplicada
+    ? r.fuenteAplicada === 'Mixta'
+      ? 'Data Mixta'
+      : `Data ${r.fuenteAplicada}`
+    : null
   const fuenteEsNacional = (r.fuenteAplicada ?? '').toLowerCase() === 'nacional'
   const fuenteEsRegional = (r.fuenteAplicada ?? '').toLowerCase() === 'regional'
+  const fuenteEsMixta = (r.fuenteAplicada ?? '').toLowerCase() === 'mixta'
 
   return (
     <div className="space-y-6 md:space-y-8">
@@ -101,7 +107,11 @@ export function CgReportPage() {
                 'shrink-0 rounded-xl border px-4 py-3 shadow-sm transition-colors',
                 fuenteEsNacional && 'border-emerald-200 bg-emerald-50',
                 fuenteEsRegional && 'border-amber-200 bg-amber-50',
-                !fuenteEsNacional && !fuenteEsRegional && 'border-slate-200 bg-white',
+                fuenteEsMixta && 'border-violet-200 bg-violet-50',
+                !fuenteEsNacional &&
+                  !fuenteEsRegional &&
+                  !fuenteEsMixta &&
+                  'border-slate-200 bg-white',
               )}
             >
               <p
@@ -109,7 +119,11 @@ export function CgReportPage() {
                   'text-[10px] font-semibold tracking-[0.14em] uppercase',
                   fuenteEsNacional && 'text-emerald-700/70',
                   fuenteEsRegional && 'text-amber-700/70',
-                  !fuenteEsNacional && !fuenteEsRegional && 'text-muted-foreground',
+                  fuenteEsMixta && 'text-violet-700/70',
+                  !fuenteEsNacional &&
+                    !fuenteEsRegional &&
+                    !fuenteEsMixta &&
+                    'text-muted-foreground',
                 )}
               >
                 Fuente
@@ -119,7 +133,11 @@ export function CgReportPage() {
                   'text-sm font-bold',
                   fuenteEsNacional && 'text-emerald-800',
                   fuenteEsRegional && 'text-amber-800',
-                  !fuenteEsNacional && !fuenteEsRegional && 'text-slate-800',
+                  fuenteEsMixta && 'text-violet-800',
+                  !fuenteEsNacional &&
+                    !fuenteEsRegional &&
+                    !fuenteEsMixta &&
+                    'text-slate-800',
                 )}
               >
                 {fuenteLabel}
@@ -185,21 +203,11 @@ export function CgReportPage() {
             </Select>
           </div>
           {filtros.meses.length > 0 ? (
-            <div className="w-[140px] space-y-1.5">
-              <Label>Mes</Label>
-              <Select value={r.mes} onValueChange={(v) => r.setMes(v ?? '')}>
-                <SelectTrigger className="h-9 w-full rounded-xl">
-                  <SelectValue placeholder="Mes" />
-                </SelectTrigger>
-                <SelectContent>
-                  {filtros.meses.map((m) => (
-                    <SelectItem key={m} value={m}>
-                      {m}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <CgMesMultiSelect
+              mesesDisponibles={filtros.meses}
+              value={r.meses}
+              onChange={r.setMeses}
+            />
           ) : (
             <p className="text-xs text-muted-foreground">Sin desglose mensual (dato anual).</p>
           )}

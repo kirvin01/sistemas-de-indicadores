@@ -10,12 +10,23 @@ import {
   type CgModo,
 } from '@/features/cg/cgReportModel'
 import { ApiError } from '@/lib/api'
-import { cgApi, cgAvanceTone, type CgFiltros, type CgResumenRow, type CgTablaCompleta, type CgTablaRedes } from '@/lib/cgApi'
+import {
+  cgApi,
+  cgAvanceTone,
+  type CgFiltros,
+  type CgResumenRow,
+  type CgTablaCompleta,
+  type CgTablaRedes,
+} from '@/lib/cgApi'
+
+function mesesParam(meses: string[]) {
+  return meses.length ? meses.join(',') : undefined
+}
 
 export function useCgReport(slug: string) {
   const [filtros, setFiltros] = useState<CgFiltros | null>(null)
   const [anio, setAnio] = useState<number | null>(null)
-  const [mes, setMes] = useState('')
+  const [meses, setMeses] = useState<string[]>([])
   const [seguro, setSeguro] = useState('')
   const [provincia, setProvincia] = useState('all')
   const [red, setRed] = useState('all')
@@ -30,6 +41,7 @@ export function useCgReport(slug: string) {
   const [loadingData, setLoadingData] = useState(false)
 
   const isRedes = modo === 'redes'
+  const mesKey = mesesParam(meses) ?? ''
 
   useEffect(() => {
     if (!slug) return
@@ -43,7 +55,8 @@ export function useCgReport(slug: string) {
       .then((f) => {
         setFiltros(f)
         setAnio(f.anios[f.anios.length - 1] ?? new Date().getFullYear())
-        setMes(pickDefaultMes(f.meses))
+        const def = pickDefaultMes(f.meses)
+        setMeses(def ? [def] : [])
         setSeguro(
           f.has_seguro
             ? (f.default_seguro ??
@@ -71,7 +84,7 @@ export function useCgReport(slug: string) {
     if (!slug || anio == null) return
     const controller = new AbortController()
     void cgApi
-      .filtros(slug, { anio, mes: mes || undefined }, { signal: controller.signal })
+      .filtros(slug, { anio, mes: mesKey || undefined }, { signal: controller.signal })
       .then((f) => {
         setFiltros((prev) =>
           prev
@@ -97,17 +110,17 @@ export function useCgReport(slug: string) {
       })
       .catch(() => {})
     return () => controller.abort()
-  }, [slug, anio, mes])
+  }, [slug, anio, mesKey])
 
   const loadData = useCallback(
     async (signal?: AbortSignal) => {
       if (!slug || !anio) return
-      if (filtros && filtros.meses.length > 0 && !mes) return
+      if (filtros && filtros.meses.length > 0 && meses.length === 0) return
       if (filtros?.has_seguro && filtros.seguros && filtros.seguros.length > 0 && !seguro) return
       setLoadingData(true)
       const params = {
         anio,
-        mes: mes || undefined,
+        mes: mesesParam(meses),
         seguro: filtros?.has_seguro && seguro ? seguro : undefined,
       }
       try {
@@ -140,7 +153,7 @@ export function useCgReport(slug: string) {
         setLoadingData(false)
       }
     },
-    [slug, anio, mes, modo, filtros, seguro],
+    [slug, anio, meses, modo, filtros, seguro],
   )
 
   useEffect(() => {
@@ -182,10 +195,7 @@ export function useCgReport(slug: string) {
   const tendenciaData = useMemo(() => buildTendenciaData(resumen), [resumen])
 
   const chartRefs = useMemo(
-    () =>
-      filtros
-        ? resolveChartRefs(slug, kind, total, filtros, metaFallback)
-        : null,
+    () => (filtros ? resolveChartRefs(slug, kind, total, filtros, metaFallback) : null),
     [slug, kind, total, filtros, metaFallback],
   )
 
@@ -200,8 +210,8 @@ export function useCgReport(slug: string) {
     loadingData,
     anio,
     setAnio,
-    mes,
-    setMes,
+    meses,
+    setMeses,
     seguro,
     setSeguro,
     provincia,
