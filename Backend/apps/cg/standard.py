@@ -69,7 +69,7 @@ def _sum_expr(col: str, alias: str) -> str:
 
 def _row_scope_sql(meta: IndicatorMeta) -> str | None:
     """Filtros de fila propios de un indicador (no aplican al resto)."""
-    if meta["slug"] == "cg23":
+    if meta["slug"] in {"cg23", "cg24"}:
         return "Valido = 1"
     return None
 
