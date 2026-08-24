@@ -81,7 +81,7 @@ def _mssql_db(name: str) -> dict:
 
 
 DATABASES = {
-    "default": _mssql_db(config("DB_NAME", default="DBSISINDICADORE")),
+    "default": _mssql_db(config("DB_NAME", default="DB_SIS_INDICADOR")),
     # Solo lectura analítica HIS / maestro pacientes
     "geresa": _mssql_db(config("DB_GERESA_NAME", default="DBGERESA")),
     # Solo lectura indicadores FED
@@ -115,6 +115,15 @@ CORS_ALLOWED_ORIGINS = list(
     )
 )
 CORS_ALLOW_CREDENTIALS = True
+
+CSRF_TRUSTED_ORIGINS = list(
+    config(
+        "CSRF_TRUSTED_ORIGINS",
+        default="http://localhost:5173,http://127.0.0.1:5173",
+        cast=Csv(),
+    )
+)
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 ACCESS_TOKEN_EXPIRE_MINUTES = config("ACCESS_TOKEN_EXPIRE_MINUTES", default=65, cast=int)
 
