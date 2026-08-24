@@ -213,7 +213,7 @@ def editar_perfil(request, perfil_id: int, payload: PerfilUpdateIn):
 
 
 api.add_router("/auth", auth_router)
-api.add_router("/n/auth", auth_router)
+api.add_router("/n/auth", auth_router, url_name_prefix="legacy_n")
 api.add_router("/usuarios", users_router)
 api.add_router("/perfiles", profiles_router)
 api.add_router("/", patients_router)
