@@ -48,11 +48,14 @@ def _client_ip(request) -> str | None:
 
 @api.get("/health", response=HealthOut, tags=["Sistema"])
 def health(request):
+    from django.conf import settings
+
     count = Usuario.objects.count()
+    db_name = settings.DATABASES["default"]["NAME"]
     return {
         "status": "ok",
         "app": "Sistemas de Indicadores GERESA CUSCO",
-        "database": f"DBSISINDICADORE (usuarios={count})",
+        "database": f"{db_name} (usuarios={count})",
     }
 
 
