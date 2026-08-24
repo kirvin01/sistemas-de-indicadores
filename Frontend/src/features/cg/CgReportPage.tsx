@@ -323,7 +323,7 @@ export function CgReportPage() {
                 <span>Logro</span>
               </div>
               <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                {r.mesLabel ?? r.mes} {r.anioLabel ?? r.anio}
+                {r.mesLabel ?? r.meses.join(', ')} {r.anioLabel ?? r.anio}
               </span>
             </div>
             <p
