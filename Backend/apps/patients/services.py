@@ -107,51 +107,35 @@ def listar_atenciones(
     params: list[Any] = [ndoc, anio]
 
     if mes is not None:
-        extras.append("AND h.Mes = %s")
+        extras.append("AND mes = %s")
         params.append(mes)
 
     if codigo:
-        # Solo columna Codigo_Item (no el texto concatenado Tipo | Código)
-        extras.append("AND h.Codigo_Item LIKE %s")
+        extras.append("AND Codigo LIKE %s")
         params.append(f"%{codigo}%")
 
     where_extra = "\n          ".join(extras)
 
     sql = f"""
         SELECT
-            ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS n,
-            CAST(h.Id_Cita AS NVARCHAR(50)) AS id_cita,
-            FORMAT(h.Fecha_Atencion, 'dd-MM-yyyy') AS f_atencion,
-            CONCAT(h.Tipo_Diagnostico, ' | ', h.Codigo_Item) AS codigo_item,
-            ISNULL(c.Descripcion_Item, '') AS descripcion_item,
-            ISNULL(MAX(CASE WHEN h.Id_Correlativo_Lab = 1 THEN h.Valor_Lab END), '') AS lab1,
-            ISNULL(MAX(CASE WHEN h.Id_Correlativo_Lab = 2 THEN h.Valor_Lab END), '') AS lab2,
-            ISNULL(MAX(CASE WHEN h.Id_Correlativo_Lab = 3 THEN h.Valor_Lab END), '') AS lab3,
-            FORMAT(h.Fecha_Registro, 'dd-MM-yyyy HH:mm:ss') AS f_registro,
-            ISNULL(FORMAT(h.Fecha_Modificacion, 'dd-MM-yyyy HH:mm:ss'), '') AS f_modificacion,
-            ISNULL(r.est_nombre, '') AS establecimiento,
-            CONCAT(ISNULL(r.DESC_DIST, ''), ' | ', ISNULL(r.DESC_PROV, '')) AS distrito_provincia,
-            ISNULL(sis.Descripcion_Sistema, 'HISMINSA') AS sistema,
-            LTRIM(RTRIM(CONCAT(
-                COALESCE(mp.Nombres_Personal, ''),
-                CASE WHEN NULLIF(LTRIM(RTRIM(mp.Apellido_Paterno_Personal)), '') IS NULL THEN '' ELSE ' ' + LTRIM(RTRIM(mp.Apellido_Paterno_Personal)) END,
-                CASE WHEN NULLIF(LTRIM(RTRIM(mp.Apellido_Materno_Personal)), '') IS NULL THEN '' ELSE ' ' + LTRIM(RTRIM(mp.Apellido_Materno_Personal)) END
-            ))) AS registrador
-        FROM HISMINSA h
-        INNER JOIN MAESTRO_PACIENTE p ON p.Id_Paciente = h.Id_Paciente
-        LEFT JOIN RENIPRESS r ON r.COD_ESTAB = h.renipress
-        LEFT JOIN MAESTRO_HIS_CIE_CPMS c ON c.Codigo_Item = h.Codigo_Item
-        LEFT JOIN MAESTRO_HIS_SISTEMA sis ON sis.Id_Sistema = h.Id_AplicacionOrigen
-        LEFT JOIN MAESTRO_PERSONAL mp ON mp.Id_Personal = h.Id_Personal
-        WHERE p.Numero_Documento = %s
-          AND h.Anio = %s
+            CAST(Id_Cita AS NVARCHAR(50)) AS id_cita,
+            CONVERT(varchar(10), FECHA_ATENCION, 103) AS f_atencion,
+            ISNULL(Codigo, '') AS codigo_item,
+            ISNULL(Descripcion_Item, '') AS descripcion_item,
+            ISNULL(LAB1, '') AS lab1,
+            ISNULL(LAB2, '') AS lab2,
+            ISNULL(LAB3, '') AS lab3,
+            CONVERT(varchar(19), F_REGISTRO, 120) AS f_registro,
+            ISNULL(CONVERT(varchar(19), F_MODIFICACION, 120), '') AS f_modificacion,
+            ISNULL(ESTABLECIMIENTO, '') AS establecimiento,
+            CONCAT(ISNULL(DISTRITO, ''), ' | ', ISNULL(POVINCIA, '')) AS distrito_provincia,
+            ISNULL(SISTEMA, 'HISMINSA') AS sistema,
+            ISNULL(registrador, '') AS registrador
+        FROM HisAtenciones
+        WHERE NUMERO = %s
+          AND anio = %s
           {where_extra}
-        GROUP BY
-            h.Id_Cita, h.Fecha_Atencion, h.Tipo_Diagnostico, h.Codigo_Item, c.Descripcion_Item,
-            h.Fecha_Registro, h.Fecha_Modificacion, sis.Descripcion_Sistema, r.est_nombre,
-            r.DESC_DIST, r.DESC_PROV,
-            mp.Nombres_Personal, mp.Apellido_Paterno_Personal, mp.Apellido_Materno_Personal
-        ORDER BY h.Fecha_Atencion DESC
+        ORDER BY FECHA_ATENCION DESC
         OFFSET %s ROWS FETCH NEXT %s ROWS ONLY
     """
     params.extend([offset, per_page])
@@ -163,10 +147,10 @@ def listar_atenciones(
         raise HttpError(500, f"Error en la base de datos: {exc}") from exc
 
     result: list[dict[str, Any]] = []
-    for r in rows:
+    for i, r in enumerate(rows):
         result.append(
             {
-                "n": int(r.get("n") or 0),
+                "n": offset + i + 1,
                 "id_cita": str(r.get("id_cita") or ""),
                 "f_atencion": str(r.get("f_atencion") or ""),
                 "codigo_item": str(r.get("codigo_item") or ""),
