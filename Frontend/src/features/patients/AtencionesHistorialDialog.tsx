@@ -108,6 +108,7 @@ export function AtencionesHistorialDialog({ open, onOpenChange, paciente }: Prop
   const loadingRef = useRef(false)
   const requestIdRef = useRef(0)
   const prevOpenRef = useRef(false)
+  const scrollRef = useRef<HTMLDivElement | null>(null)
 
   const mesNum = mes === MES_TODOS ? undefined : Number(mes)
   const codigoFiltro = normalizeCodigoFilter(codigoDebounced)
@@ -249,6 +250,41 @@ export function AtencionesHistorialDialog({ open, onOpenChange, paciente }: Prop
 
   const busy = loading && atenciones.length === 0
 
+  useEffect(() => {
+    if (!open || busy) return
+    const box = scrollRef.current
+    if (!box) return
+    const onScroll = () => {
+      const th = box.querySelector('th')
+      const wrap = box.querySelector('[data-slot="table-container"]')
+      const thTop = th?.getBoundingClientRect().top ?? null
+      const boxTop = box.getBoundingClientRect().top
+      // #region agent log
+      fetch('http://127.0.0.1:7584/ingest/b1dff231-0caf-45f4-a096-7fb00ee15085', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '70c764' },
+        body: JSON.stringify({
+          sessionId: '70c764',
+          runId: 'sticky-head',
+          hypothesisId: 'H1-H2',
+          location: 'AtencionesHistorialDialog.tsx:scroll',
+          message: 'table header vs scroll box',
+          data: {
+            scrollTop: box.scrollTop,
+            boxTop: Math.round(boxTop),
+            thTop: thTop == null ? null : Math.round(thTop),
+            stuck: thTop != null && Math.abs(thTop - boxTop) <= 2,
+            wrapOverflowX: wrap ? getComputedStyle(wrap).overflowX : null,
+          },
+          timestamp: Date.now(),
+        }),
+      }).catch(() => {})
+      // #endregion
+    }
+    box.addEventListener('scroll', onScroll, { passive: true })
+    return () => box.removeEventListener('scroll', onScroll)
+  }, [open, busy])
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -358,7 +394,7 @@ export function AtencionesHistorialDialog({ open, onOpenChange, paciente }: Prop
           </StatusBadge>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-auto">
+        <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">
           {busy ? (
             <div className="flex h-48 items-center justify-center gap-3 text-muted-foreground">
               <Loader2 className="size-5 animate-spin text-primary" />
@@ -366,21 +402,30 @@ export function AtencionesHistorialDialog({ open, onOpenChange, paciente }: Prop
             </div>
           ) : (
             <>
-              <Table>
-                <TableHeader className="sticky top-0 z-10 bg-card shadow-sm">
+              <Table
+                className="border-separate border-spacing-0"
+                containerClassName="overflow-visible"
+              >
+                <TableHeader className="bg-card [&_tr]:border-b">
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="w-12">#</TableHead>
-                    <TableHead>Fecha</TableHead>
-                    <TableHead>Código</TableHead>
-                    <TableHead className="min-w-[200px]">Descripción</TableHead>
-                    <TableHead>Lab1</TableHead>
-                    <TableHead>Lab2</TableHead>
-                    <TableHead>Lab3</TableHead>
-                    <TableHead>F. Registro</TableHead>
-                    <TableHead className="min-w-[160px]">Establecimiento</TableHead>
-                    <TableHead>Dist. | Prov.</TableHead>
-                    <TableHead>Sistema</TableHead>
-                    <TableHead className="min-w-[140px]">Registrador</TableHead>
+                    <TableHead className="sticky top-0 z-10 w-12 bg-card">#</TableHead>
+                    <TableHead className="sticky top-0 z-10 bg-card">Fecha</TableHead>
+                    <TableHead className="sticky top-0 z-10 bg-card">Código</TableHead>
+                    <TableHead className="sticky top-0 z-10 min-w-[200px] bg-card">
+                      Descripción
+                    </TableHead>
+                    <TableHead className="sticky top-0 z-10 bg-card">Lab1</TableHead>
+                    <TableHead className="sticky top-0 z-10 bg-card">Lab2</TableHead>
+                    <TableHead className="sticky top-0 z-10 bg-card">Lab3</TableHead>
+                    <TableHead className="sticky top-0 z-10 bg-card">F. Registro</TableHead>
+                    <TableHead className="sticky top-0 z-10 min-w-[160px] bg-card">
+                      Establecimiento
+                    </TableHead>
+                    <TableHead className="sticky top-0 z-10 bg-card">Dist. | Prov.</TableHead>
+                    <TableHead className="sticky top-0 z-10 bg-card">Sistema</TableHead>
+                    <TableHead className="sticky top-0 z-10 min-w-[140px] bg-card">
+                      Registrador
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
